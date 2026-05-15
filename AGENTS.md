@@ -31,6 +31,7 @@ If any of these conflict, ask me which one is right. Don't silently reconcile.
 3. If we made decisions worth recording, draft DECISIONS.md entries and **ask before writing them**.
 4. Note any drift from PLAN.md in STATE.md under "open questions" — don't edit PLAN.md mid-stream.
 5. Recommend a focus for the next session.
+6. Append the prompt for the next session to project/diary/diary-YYYY-MM.md under the heading "### Next Prompt"
 
 ## Milestones
 

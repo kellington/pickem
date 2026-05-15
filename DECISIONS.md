@@ -64,3 +64,38 @@ Append-only log of meaningful decisions. Never edit past entries — if a decisi
 **Why:** A Monday night pick should remain hidden until that Monday night game begins.
 **Trade-off:** Group Picks visibility is more granular than revealing the whole week at once.
 **Impact:** Pick visibility queries must filter by each game's start time.
+
+## [2026-05-15] — League timezone
+
+**Decision:** Use `America/Edmonton` as the league timezone for displaying kickoff and cutoff times.
+**Why:** This matches the league owner's local operating context.
+**Trade-off:** NFL source data is usually published in Eastern time, so imports must convert source times to UTC and display them in the league timezone.
+**Impact:** The season model should store `league_timezone`, and all kickoff/cutoff timestamps should be stored in UTC.
+
+## [2026-05-15] — Replit Auth mapping model
+
+**Decision:** Keep Replit Auth identity separate from league membership and player profiles.
+**Why:** Replit Auth should prove who logged in, while the app decides whether that user is approved for the private league and which team profile they control.
+**Trade-off:** The app needs a small mapping layer between Replit Auth users, approved league members, and player profiles.
+**Impact:** The v1 model uses `app_users`, `league_members`, and `player_profiles`, with first-login binding for approved members.
+
+## [2026-05-15] — Derived standings
+
+**Decision:** Derive standings from pick scores and cached weekly scores rather than maintaining standings as a manually edited source-of-truth table.
+**Why:** Standings should be reproducible from picks, results, scoring rules, and dropped-week configuration.
+**Trade-off:** Queries or views need to calculate raw totals, dropped points, adjusted totals, and ranks.
+**Impact:** Batch scoring should write `pick_scores` and `weekly_scores`; standings should be a derived query or view.
+
+## [2026-05-15] — Neutral-site schedule semantics
+
+**Decision:** For neutral-site games, preserve the schedule source order as away/home and mark the game with `neutral_site = true` plus location metadata.
+**Why:** This keeps imports deterministic while preserving enough context to display international or neutral-site games accurately.
+**Trade-off:** The source order may not always communicate the official designated home team perfectly.
+**Impact:** The game model stores `away_team_id`, `home_team_id`, `neutral_site`, and nullable site fields.
+
+## [2026-05-15] — Replit Agent handoff blueprint
+
+**Decision:** Document the approved v1 data model and 2026 schedule bootstrap process in `REPLIT_AGENT_HANDOFF.md` before importing the repo into Replit.
+**Why:** Replit Agent needs a concrete implementation blueprint to scaffold the app without re-deciding product and data-model fundamentals.
+**Trade-off:** The handoff doc may need to be reconciled with whatever exact auth/database conventions Replit Agent generates.
+**Impact:** The next implementation step is to import the repo into Replit and scaffold against the approved handoff document.

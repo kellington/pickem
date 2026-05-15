@@ -14,6 +14,12 @@ The decisions, corrections, constraints, and tradeoffs that required experience 
 
 ## Key Process Decisions
 The important choices that shaped scope, architecture, data, workflow, user experience, or delivery.
+- using Codex to start project
+    - it is very good planner
+    - I wanted to experiment with ChatGPT on iPhone integrated with Codex on my Mac
+- using Replit Agent to continue
+    - trying to go back and forth between agents proved problematic in the past
+    - largely a problem with Replit and GitHub integration, not multi-agent in general
 
 ## Quality and Confidence Checks
 How the work was reviewed, tested, validated, simplified, or improved.
