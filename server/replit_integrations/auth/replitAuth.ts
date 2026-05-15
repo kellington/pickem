@@ -23,7 +23,7 @@ export function getSession() {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
@@ -36,6 +36,7 @@ export function getSession() {
       httpOnly: true,
       secure: true,
       maxAge: sessionTtl,
+      sameSite: "none",
     },
   });
 }
@@ -111,9 +112,15 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
-    })(req, res, next);
+    })(req, res, (err: any) => {
+      if (err) {
+        console.error("Auth callback error:", err);
+        return next(err);
+      }
+      console.log("Auth callback success, user:", (req as any).user ? "present" : "missing");
+      res.redirect("/");
+    });
   });
 
   app.get("/api/logout", (req, res) => {

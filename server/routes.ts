@@ -21,11 +21,42 @@ import { validatePick, scoreBatchForWeek } from "./domain.js";
 export function registerRoutes(app: Express) {
   app.get("/api/me", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
-      if (!user) return res.status(404).json({ message: "User not found" });
+      const claims = req.user.claims;
+      const userId = claims.sub;
 
-      const [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      let [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) {
+        [user] = await db.insert(appUsers).values({
+          replitUserId: userId,
+          replitUsername: claims.username || null,
+          email: claims.email || null,
+          displayName: claims.first_name || claims.username || "Player",
+          avatarUrl: claims.profile_image_url || null,
+        }).returning();
+      } else {
+        await db.update(appUsers).set({ lastSeenAt: new Date() }).where(eq(appUsers.id, user.id));
+      }
+
+      let [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      if (!member) {
+        let matched: typeof leagueMembers.$inferSelect | undefined;
+        if (user.email) {
+          [matched] = await db.select().from(leagueMembers)
+            .where(and(eq(leagueMembers.approvedEmail, user.email), eq(leagueMembers.status, "invited")));
+        }
+        if (!matched && user.replitUsername) {
+          [matched] = await db.select().from(leagueMembers)
+            .where(and(eq(leagueMembers.approvedReplitUsername, user.replitUsername!), eq(leagueMembers.status, "invited")));
+        }
+        if (matched) {
+          [member] = await db.update(leagueMembers).set({
+            appUserId: user.id,
+            status: "active",
+            joinedAt: new Date(),
+          }).where(eq(leagueMembers.id, matched.id)).returning();
+        }
+      }
+
       const profile = member
         ? (await db.select().from(playerProfiles).where(eq(playerProfiles.leagueMemberId, member.id)))[0]
         : null;
