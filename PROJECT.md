@@ -1,44 +1,53 @@
-# [Project Name]
+# NFL Pickem
 
-> One-sentence description of what this is.
+> A private NFL Pick'em web app where one friend group makes weekly confidence picks, tracks standings, and competes across the NFL season.
 
 ## Why this exists
 
-What problem does this solve? What's the motivating pain or opportunity?
-Keep it to a short paragraph.
+This project replaces a previous pick'em workflow with a private web app that makes weekly NFL picks easier to submit, score, and follow. Friends should be able to log in, pick winners, assign confidence points, and see weekly and season standings without relying on spreadsheets, public league platforms, gambling features, or heavy weekly administration.
 
 ## Who it's for
 
-- Primary user:
-- Secondary users (if any):
+- Primary users: friends participating in the private NFL Pick'em league.
+- Secondary user: the league admin who manages the season setup, users, schedule, cutoffs, results, and corrections.
 
 ## Success criteria
 
-What does "this worked" look like? Be concrete enough that you can tell
-later whether you got there.
-
-- [ ]
-- [ ]
-- [ ]
+- [ ] Approved league members can log in.
+- [ ] Each player can set a team name and optionally upload a team image; initials are used as the fallback.
+- [ ] Players can view each NFL week's games in a simple home/away matchup interface.
+- [ ] Players can choose the winner of each game.
+- [ ] Players can assign confidence points for the week, using each available value exactly once.
+- [ ] Players can edit their own picks until each game's configured cutoff time.
+- [ ] Picks are private before games start or before the relevant cutoff passes.
+- [ ] Game results can be entered or updated after games complete.
+- [ ] Weekly scores can be calculated in a batch after results are known.
+- [ ] Players can see weekly rankings and season standings.
+- [ ] The admin can manage setup directly through the database for v1; a dedicated admin UI is not required.
 
 ## Non-goals
 
-Things this project is explicitly *not* trying to do. This list prevents
-scope creep more than the success criteria do.
-
--
--
+- Public leagues or multi-league support.
+- Gambling, payments, betting pools, or prize handling.
+- Against-the-spread scoring.
+- Spread-based or odds-based scoring.
+- Real-time scoring during live games for v1.
+- Native mobile apps.
+- Social feed, chat, or complex community features.
+- Full admin interface before the core league workflow works.
 
 ## Constraints
 
-Hard limits that shape decisions — budget, stack choices I don't want to
-revisit, deadlines, compliance, etc.
-
--
--
+- Built for one private friend group.
+- Simple pick'em only: choose game winners and assign confidence points.
+- The full season schedule can be preloaded at the start of the season.
+- Each scheduled game should support at least: week, game date/time, away team, home team, pick cutoff time, and final winner/result.
+- Manual database administration is acceptable for v1.
+- Scoring can run as a batch process after games complete.
+- The app should be usable on both mobile and desktop.
+- Odds or spread data may be displayed later if easy to source, but it is low priority and must not affect scoring.
+- Future rule variations are expected, so the system should avoid hard-coding assumptions that make alternate scoring formats difficult later.
 
 ---
 
-*This file changes rarely. If you find yourself editing it often, something
-is wrong — either the scope is actually shifting (record that in
-DECISIONS.md) or you're putting the wrong content here.*
+*This file changes rarely. If you find yourself editing it often, something is wrong — either the scope is actually shifting (record that in DECISIONS.md) or you're putting the wrong content here.*

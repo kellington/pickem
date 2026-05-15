@@ -1,49 +1,55 @@
 # State
 
-*Last updated: [YYYY-MM-DD HH:MM]*
+*Last updated: 2026-05-14 21:12 MDT*
 
 ## Summary
 
-2–4 lines on where things are. If someone (including future-you) read
-only this section, what do they need to know?
+The project is at product-definition stage. `PROJECT.md` now defines a private NFL Pick'em app for one friend group, with weekly winner picks, confidence points, standings, and simple admin-by-database setup for v1.
+
+No application stack, database, hosting, auth provider, or implementation has been chosen yet. There is no app scaffold, dependency setup, or test suite.
 
 ## What's working
 
-Features or components that are done and verified.
-
--
--
+- Project protocol files exist at the repo root.
+- Product scope is drafted in `PROJECT.md`.
+- Initial milestone direction is captured in `PLAN.md`.
 
 ## In progress
 
-What's partially done. Include where to pick up.
-
--
--
+- First milestone planning: define the smallest v1 that supports a real Week 1 pick'em workflow.
+- Stack selection remains open.
+- Data model remains open.
 
 ## Known issues
 
-Bugs, rough edges, things that work but shouldn't be trusted yet.
-
--
--
+- `AGENTS.md` conventions are still blank because stack, testing, branching, commits, and secrets conventions are undecided.
+- No runnable app exists yet.
+- No tests exist yet.
 
 ## Environment / setup
 
-How to run this locally. Anything non-obvious about the dev loop.
+No development environment is set up yet.
 
-```
-# commands to get running
+```sh
+# No app commands exist yet.
 ```
 
 ## Open questions
 
-Things we haven't decided yet, or drift from PLAN.md worth surfacing.
+- Which stack should be used for the web app, database, auth, and deployment?
+- What should the first deploy target be?
+- Should v1 use email/password, magic links, or another simple private-login approach?
+- How should the full NFL schedule be imported or seeded?
+- What batch scoring command or workflow should compute weekly results?
 
--
--
+## Resolved this session
+
+- Defined the core product as a private NFL Pick'em web app for one friend group.
+- Chose simple winner-based pick'em with confidence points as the initial scoring format.
+- Chose per-game configurable cutoff times.
+- Chose manual season setup and database-level admin operations as acceptable for v1.
+- Deferred odds/spread display as low-priority and display-only.
 
 ---
 
-*Updated at the end of every session. Keep it current — this is the file
-the agent reads first next session.*
+*Updated at the end of every session. Keep it current — this is the file the agent reads first next session.*

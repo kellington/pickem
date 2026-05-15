@@ -2,41 +2,32 @@
 
 Keep this file small. Aim for under ~15 items total.
 
-If a single item needs more than one session, has hard out-of-scope
-boundaries, or will run as /goal, promote it to tasks/<slug>.md and
-link to it from the appropriate section (e.g. `- [ ] Auth migration
-→ tasks/auth-migration.md`).
-
-If the backlog is just growing, drop items.
+If a single item needs more than one session, has hard out-of-scope boundaries, or will run as /goal, promote it to tasks/<slug>.md and link to it from the appropriate section.
 
 ## Now
 
-Actively being worked on right now — usually 1, occasionally 2 items.
-
-- [ ]
+- [ ] Review `PROJECT.md` for scope accuracy and adjust before implementation planning.
+- [ ] Choose the initial stack, database, auth approach, hosting target, and test expectations.
 
 ## Next
 
-The next handful of tasks, ordered. These are what the agent should
-propose at the start of a session.
-
-- [ ]
-- [ ]
-- [ ]
+- [ ] Define the first v1 data model: users, teams/profiles, NFL teams, games, picks, confidence points, results, and standings.
+- [ ] Decide how the full-season NFL schedule will be seeded or imported.
+- [ ] Scaffold the app once stack decisions are made.
+- [ ] Build the week-one pick submission flow.
+- [ ] Build batch scoring and standings calculation.
 
 ## Later
 
-Small near-term ideas that don't deserve an issue yet. If something sits
-here across two milestones untouched, delete it.
-
-- [ ]
-- [ ]
+- [ ] Add optional uploaded team images with initials fallback.
+- [ ] Add sticker/badge-style achievements for weekly performance.
+- [ ] Add display-only odds/spread information if there is an easy, reliable source.
+- [ ] Add an admin UI if database-level operations become too cumbersome.
 
 ## Done (recent)
 
-Cleared at each milestone. Lets you see what shipped lately without
-digging through git log.
-
-- [x]
+- [x] Drafted the initial `PROJECT.md` product brief.
+- [x] Captured the first milestone direction in `PLAN.md`.
+- [x] Recorded initial product decisions in `DECISIONS.md`.
 
 ---
