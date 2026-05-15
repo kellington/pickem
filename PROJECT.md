@@ -15,14 +15,18 @@ This project replaces a previous pick'em workflow with a private web app that ma
 
 - [ ] Approved league members can log in.
 - [ ] Each player can set a team name and optionally upload a team image; initials are used as the fallback.
-- [ ] Players can view each NFL week's games in a simple home/away matchup interface.
+- [ ] Players can view each NFL week's games in a simple home/away matchup interface inspired by the previous Yahoo Pick'em workflow.
 - [ ] Players can choose the winner of each game.
 - [ ] Players can assign confidence points for the week, using each available value exactly once.
 - [ ] Players can edit their own picks until each game's configured cutoff time.
-- [ ] Picks are private before games start or before the relevant cutoff passes.
+- [ ] Picks for each game are private until that specific game starts.
 - [ ] Game results can be entered or updated after games complete.
 - [ ] Weekly scores can be calculated in a batch after results are known.
-- [ ] Players can see weekly rankings and season standings.
+- [ ] Players can see their own pick status, saved-pick count, and remaining confidence values.
+- [ ] Players can see group picks after each game becomes visible.
+- [ ] Players can see weekly rankings, season standings, dropped-week impact, and regular-season champion results.
+- [ ] The regular season can drop a configurable number of lowest-scoring weeks, initially 4.
+- [ ] A separate playoff phase can start after the regular season.
 - [ ] The admin can manage setup directly through the database for v1; a dedicated admin UI is not required.
 
 ## Non-goals
@@ -35,16 +39,19 @@ This project replaces a previous pick'em workflow with a private web app that ma
 - Native mobile apps.
 - Social feed, chat, or complex community features.
 - Full admin interface before the core league workflow works.
+- External services outside Replit for v1.
 
 ## Constraints
 
 - Built for one private friend group.
+- Run the v1 stack entirely on Replit: Replit Auth, Replit managed PostgreSQL, Replit Deployments, and Replit App Storage when uploads are added.
 - Simple pick'em only: choose game winners and assign confidence points.
 - The full season schedule can be preloaded at the start of the season.
 - Each scheduled game should support at least: week, game date/time, away team, home team, pick cutoff time, and final winner/result.
 - Manual database administration is acceptable for v1.
 - Scoring can run as a batch process after games complete.
 - The app should be usable on both mobile and desktop.
+- The main UI should favor compact tables and dashboards over decorative layout.
 - Odds or spread data may be displayed later if easy to source, but it is low priority and must not affect scoring.
 - Future rule variations are expected, so the system should avoid hard-coding assumptions that make alternate scoring formats difficult later.
 

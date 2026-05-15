@@ -36,3 +36,31 @@ Append-only log of meaningful decisions. Never edit past entries — if a decisi
 **Why:** The competition is simple winner pick'em and does not use spreads for scoring.
 **Trade-off:** V1 will not depend on external odds feeds.
 **Impact:** Scoring must ignore spread and odds data entirely.
+
+## [2026-05-15] — Replit-only v1 stack
+
+**Decision:** Build v1 entirely on Replit services: Replit Auth, Replit managed PostgreSQL, Replit Deployments, and Replit App Storage when uploads are added.
+**Why:** The league is a small private friend group, and the owner already has a Replit account and can help friends with Replit accounts.
+**Trade-off:** Users must use Replit Auth, and the project is initially tied to Replit's platform.
+**Impact:** Avoid third-party services for v1 and document Replit conventions in `AGENTS.md`.
+
+## [2026-05-15] — Four dropped regular-season weeks
+
+**Decision:** Regular-season standings should support a configurable dropped-week count, initially 4.
+**Why:** The league wants Yahoo-style dropped weeks while keeping future seasons configurable.
+**Trade-off:** Standings logic is more complex than a straight total.
+**Impact:** The season model and scoring logic must track raw totals and dropped-week adjusted totals.
+
+## [2026-05-15] — Separate playoff phase
+
+**Decision:** The regular season has its own champion, then a separate playoff bracket or phase starts.
+**Why:** Regular-season competition and playoff competition should be distinct.
+**Trade-off:** Playoff rules can be deferred but cannot be collapsed into regular-season standings.
+**Impact:** The data model should distinguish regular season from playoff phase.
+
+## [2026-05-15] — Per-game pick reveal
+
+**Decision:** Picks become visible to others only after each specific game starts.
+**Why:** A Monday night pick should remain hidden until that Monday night game begins.
+**Trade-off:** Group Picks visibility is more granular than revealing the whole week at once.
+**Impact:** Pick visibility queries must filter by each game's start time.

@@ -55,14 +55,12 @@ Prefer small, reversible changes. If you're unsure, stop and ask.
 
 ## Conventions
 
-<!-- Fill these in per project. Leave blank until decided. -->
-
-- **Language / stack:**
-- **Code style:**
-- **Testing:** (framework, when to add tests, coverage expectations)
-- **Commits:** (message format, squash vs merge)
-- **Branching:**
-- **Secrets / env:** (how to handle, where `.env.example` lives)
+- **Language / stack:** TypeScript web app on Replit. Use Replit Auth, Replit managed PostgreSQL, Replit App Storage for uploads, and Replit Deployments. Avoid third-party services for v1 unless the user explicitly approves a decision change.
+- **Code style:** Prefer clear, compact, table-driven UI and straightforward domain logic. Keep scoring, pick validation, lock/visibility rules, and standings calculations in testable server-side functions.
+- **Testing:** Add focused unit tests for scoring, confidence-point validation, dropped-week calculations, lock/visibility behavior, and standings. Add browser-flow tests once the app has a runnable UI.
+- **Commits:** Ask before committing. Use short imperative commit messages.
+- **Branching:** Work on `main` unless the user asks for a feature branch or PR flow.
+- **Secrets / env:** Use Replit Secrets/environment variables. Do not commit secret values. Document required variables once the scaffold exists.
 
 ## Notes to the agent
 
