@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+:root {
+  --nfl-blue: #013369;
+  --nfl-red: #d50a0a;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #f1f5f9;
+  color: #1e293b;
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
