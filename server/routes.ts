@@ -88,14 +88,15 @@ export function registerRoutes(app: Express) {
 
       let [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
       if (!member) {
-        let matched = null;
+        // Try to match an invited member by email or username
+        let matched: typeof leagueMembers.$inferSelect | undefined;
         if (user.email) {
           [matched] = await db.select().from(leagueMembers)
             .where(and(eq(leagueMembers.approvedEmail, user.email), eq(leagueMembers.status, "invited")));
         }
         if (!matched && user.replitUsername) {
           [matched] = await db.select().from(leagueMembers)
-            .where(and(eq(leagueMembers.approvedReplitUsername, user.replitUsername), eq(leagueMembers.status, "invited")));
+            .where(and(eq(leagueMembers.approvedReplitUsername, user.replitUsername!), eq(leagueMembers.status, "invited")));
         }
         if (matched) {
           [member] = await db.update(leagueMembers).set({
@@ -103,23 +104,36 @@ export function registerRoutes(app: Express) {
             status: "active",
             joinedAt: new Date(),
           }).where(eq(leagueMembers.id, matched.id)).returning();
+        } else {
+          // No pre-approved record — auto-create. First member becomes admin.
+          const [existingAny] = await db.select().from(leagueMembers).limit(1);
+          const role = existingAny ? "player" : "admin";
+          [member] = await db.insert(leagueMembers).values({
+            appUserId: user.id,
+            role,
+            status: "active",
+            joinedAt: new Date(),
+          }).returning();
         }
       }
 
       const { teamName, initials } = req.body;
-      if (member && teamName && initials) {
-        const existing = await db.select().from(playerProfiles).where(eq(playerProfiles.leagueMemberId, member.id));
-        if (existing.length === 0) {
-          await db.insert(playerProfiles).values({
-            leagueMemberId: member.id,
-            teamName,
-            initials: initials.toUpperCase().slice(0, 4),
-            displayOrder: 0,
-          });
-        } else {
-          await db.update(playerProfiles).set({ teamName, initials: initials.toUpperCase().slice(0, 4), updatedAt: new Date() })
-            .where(eq(playerProfiles.leagueMemberId, member.id));
-        }
+      if (!teamName?.trim() || !initials?.trim()) {
+        return res.status(400).json({ message: "Team name and initials are required" });
+      }
+
+      const existing = await db.select().from(playerProfiles).where(eq(playerProfiles.leagueMemberId, member.id));
+      if (existing.length === 0) {
+        await db.insert(playerProfiles).values({
+          leagueMemberId: member.id,
+          teamName: teamName.trim(),
+          initials: initials.trim().toUpperCase().slice(0, 4),
+          displayOrder: 0,
+        });
+      } else {
+        await db.update(playerProfiles)
+          .set({ teamName: teamName.trim(), initials: initials.trim().toUpperCase().slice(0, 4), updatedAt: new Date() })
+          .where(eq(playerProfiles.leagueMemberId, member.id));
       }
 
       res.json({ ok: true });
