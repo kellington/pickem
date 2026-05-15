@@ -36,7 +36,7 @@ Each file has one purpose. If you can't decide where something goes, the file bo
 
 **Update cadence:** Rarely. Touch only when working agreements change.
 
-**Tip:** If you have a personal `~/CLAUDE.md` or a parent-directory `CLAUDE.md`, make this file repo-specific and let the parent carry the generic stuff.
+**Tip:** If you have a personal `~/AGENTS.md` or a parent-directory `AGENTS.md`, make this file repo-specific and let the parent carry the generic stuff.
 
 **Tip:** Options for varying agents.
 1. Create a symlink to `AGENTS.md` as `CLAUDE.md` that would be picked up by another Agent frameworks.
@@ -125,7 +125,7 @@ Each file has one purpose. If you can't decide where something goes, the file bo
 
 **Update cadence:** Constantly. Roll items through Now → Done.
 
-**Discipline:** Keep it small. Aim for under ~15 items total. Anything larger than a session of work, or anything that needs discussion, open a GitHub issue instead.
+**Discipline:** Keep it small. Aim for under ~15 items total. But also OK to ask to drop until later in the project.
 
 **SubTasks** If a single task needs more than one session, has hard out-of-scope boundaries, or will run as /goal, promote it to tasks/<slug>.md and link to it from the appropriate section.  The template task/subtask.md has more structured sections.
 - (e.g. `- [ ] Auth migration → tasks/auth-migration.md`).
@@ -203,7 +203,7 @@ A reasonable signal: if you're a solo dev or 2–3 person team building one prod
 
 1. Copy the six files in as empty stubs.
 2. Fill in `PROJECT.md` first — one sitting, 30 minutes. If you can't, you don't know what you're building yet.
-3. Fill in `CLAUDE.md` from the template. Adjust conventions for your stack.
+3. Fill in `AGENTS.md` | `CLAUDE.md` from the template. Adjust conventions for your stack.
 4. Write `PLAN.md` for your first milestone. Be specific about *done*.
 5. Drop the first 1–3 tasks into `TASKS.md` Now/Next.
 6. Leave `STATE.md` as a one-line "Just started — see PLAN.md" until you've actually shipped something.
@@ -217,7 +217,7 @@ After a couple of sessions, the rhythm clicks. The agent reads `STATE.md`, propo
 
 The pattern only works if the agent actually follows the session loop and updates the files. Two safeguards:
 
-- **Make the loop part of `CLAUDE.md`.** The agent reads it every session.
+- **Make the loop part of `AGENTS.md` | `CLAUDE.md` .** The agent reads it every session.
 - **Call out misses.** If a session ends without `STATE.md` being updated, say so next time. The agent learns.
 
 You're not babysitting — you're calibrating. Once the rhythm is established, the files maintain themselves as a side effect of working.
