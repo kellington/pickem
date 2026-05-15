@@ -1,0 +1,14 @@
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+.cache/
+.local/
+
+SECRETS.PRIVATE.YAML
