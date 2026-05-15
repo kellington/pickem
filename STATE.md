@@ -1,71 +1,55 @@
 # State
 
-*Last updated: 2026-05-15 11:25 MDT*
+*Last updated: 2026-05-15 (end of Replit scaffold session)*
 
 ## Summary
 
-The project is at product-definition stage. `PROJECT.md` defines a private NFL Pick'em app for one friend group, with weekly winner picks, confidence points, dropped weeks, standings, and simple admin-by-database setup for v1.
-
-The initial stack direction is Replit-only: Replit Auth, Replit managed PostgreSQL, Replit Deployments, and Replit App Storage later for uploaded team images. The current milestone is focused on basic scaffolding, login, pick selection, manual result entry, and initial scoring before adding bonus features.
-
-The first v1 data model and 2026 schedule bootstrap approach are now approved and documented in `REPLIT_AGENT_HANDOFF.md` for Replit Agent handoff.
+The app is scaffolded and running on Replit. Replit Auth login works end-to-end. Profile setup works. The database has 32 NFL teams, a 2026 season row, and 18 week stubs — but no actual game schedule loaded yet. The core pick submission, scoring, and standings routes are wired but untested against real game data. The milestone is roughly 60% complete: auth and profile are done; pick flow, scoring, and standings need real games and end-to-end verification.
 
 ## What's working
 
-- Project protocol files exist at the repo root.
-- Product scope is drafted in `PROJECT.md`.
-- Initial milestone direction is captured in `PLAN.md`.
-- Stack conventions are now captured in `AGENTS.md`.
-- Approved Replit Agent handoff blueprint exists in `REPLIT_AGENT_HANDOFF.md`.
+- Full-stack app running via Replit Workflow: Vite/React frontend (port 5000), Express/TypeScript backend (port 3001 dev, proxied through Vite)
+- Replit Auth OIDC login working — session cookie uses `SameSite=None; Secure` to work correctly inside the Replit preview iframe
+- `/api/me` auto-creates an `appUsers` record on first login and matches against `leagueMembers` by email or Replit username
+- Profile setup (`/api/profile` POST) auto-creates a `leagueMembers` record if none exists (first user becomes admin), then saves `playerProfiles`
+- All pages scaffolded: Landing, SetupProfile, Home, WeekPicks, GroupPicks, Standings, Nav
+- All core API routes scaffolded: `/api/me`, `/api/profile`, `/api/picks`, `/api/seasons`, `/api/weeks/:id/games`, `/api/weeks/:id/standings`, `/api/seasons/:id/standings`, `/api/admin/score-week/:id`
+- PostgreSQL connected via Drizzle ORM; schema pushed; 32 NFL teams and 2026 season/weeks seeded
+- Replit Deployment configured: autoscale, `npm run build` + `npm run start:prod`
 
 ## In progress
 
-- First milestone planning: define the smallest Replit-hosted v1 that supports a real Week 1 pick'em workflow.
-- Import/scaffold transition to Replit Agent.
-- Auth implementation details remain open inside the Replit Auth approach and should be validated during Replit scaffold work.
+- Nothing actively in flight at end of session.
 
-## Known issues
+## Known issues / gaps
 
-- No runnable app exists yet.
-- No tests exist yet.
-- `project/ideas/` contains Yahoo Pick'em reference screenshots for UI inspiration.
-- `project/ideas/ideas.md` contains future feature ideas that are intentionally out of the first scaffold milestone.
+- **No game schedule loaded.** Week stubs exist but no `games` rows — the pick submission UI cannot be exercised end-to-end.
+- **2026 NFL schedule not yet bootstrapped** from the NFL Football Operations source.
+- **Pick submission flow unverified:** confidence-point validation, per-game cutoff enforcement, and saved-pick count need testing with real games.
+- **Scoring batch unverified:** `/api/admin/score-week/:id` logic not tested against real picks and results.
+- **Standings unverified:** dropped-week calculation not tested.
+- **Group Picks visibility unverified:** per-game reveal after kickoff not confirmed working.
+- STATE.md, TASKS.md, and PLAN.md were stale (pre-scaffold) at the start of this session — now updated.
+- No automated tests yet; scoring, validation, and standings logic need unit coverage.
 
 ## Environment / setup
 
-No development environment is set up yet.
-
 ```sh
-# No app commands exist yet.
+npm run dev          # starts both servers via concurrently (frontend :5000, backend :3001)
+npm run db:push      # push Drizzle schema to PostgreSQL
+npm run seed:teams   # seed 32 NFL teams
+npm run seed:season  # seed 2026 season + week stubs
+npm run build        # production build
+npm run start:prod   # production server (port 5000, serves built frontend + API)
 ```
+
+Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `REPL_ID`, `REPLIT_DOMAINS`, `ISSUER_URL` (set as Replit Secrets).
 
 ## Open questions
 
-- What exact Replit app framework should be scaffolded: Next.js, Remix/React Router, or a simpler Replit-native TypeScript setup?
-- What exact Replit Auth table/claims shape will Replit Agent generate, and how should it be adapted to the approved `app_users` / `league_members` mapping?
-- What batch scoring command or workflow should Replit Agent implement around the approved `pick_scores` and `weekly_scores` model?
-
-## Resolved this session
-
-- Defined the core product as a private NFL Pick'em web app for one friend group.
-- Chose simple winner-based pick'em with confidence points as the initial scoring format.
-- Chose per-game configurable cutoff times.
-- Chose manual season setup and database-level admin operations as acceptable for v1.
-- Deferred odds/spread display as low-priority and display-only.
-- Reviewed Yahoo Pick'em screenshots and clarified the core UI surfaces: My Picks, Group Picks, and Standings.
-- Chose Replit-only services for v1.
-- Chose 4 dropped regular-season weeks as a configurable season parameter.
-- Chose per-game pick reveal after each game starts.
-- Chose regular-season champion plus a separate playoff phase.
-- Refocused `PLAN.md` on basic scaffolding, login, pick selection, manual scoring, and schedule bootstrapping before advanced features.
-- Identified the official NFL Football Operations 2026 schedule page as a candidate source for bootstrapping the season schedule.
-- Approved `America/Edmonton` as the league timezone.
-- Approved neutral-site game semantics: preserve source order as away/home and mark `neutral_site = true`.
-- Approved derived standings from weekly scores rather than a manually edited standings table.
-- Approved Replit Auth mapping through separate app user, league member, and player profile records.
-- Approved the first v1 data model covering auth mapping, player/team profiles, seasons, season members, weeks, NFL teams, games, results, picks, pick scores, weekly scores, dropped-week standings, and schedule import staging.
-- Approved the manual/semi-manual 2026 schedule bootstrap process from the NFL Football Operations schedule page into PostgreSQL.
-- Added `REPLIT_AGENT_HANDOFF.md` as the concrete blueprint for importing the repo into Replit and starting scaffold work with Replit Agent.
+- What is the source and format for the 2026 NFL game schedule? Manual CSV, NFL Football Operations page scrape, or another approach?
+- Should the admin score-week flow be triggered via a web endpoint (current) or a CLI/script?
+- Do we want to seed one or two real Week 1 games manually to unblock pick-flow testing before the full schedule is loaded?
 
 ---
 

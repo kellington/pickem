@@ -99,3 +99,24 @@ Append-only log of meaningful decisions. Never edit past entries — if a decisi
 **Why:** Replit Agent needs a concrete implementation blueprint to scaffold the app without re-deciding product and data-model fundamentals.
 **Trade-off:** The handoff doc may need to be reconciled with whatever exact auth/database conventions Replit Agent generates.
 **Impact:** The next implementation step is to import the repo into Replit and scaffold against the approved handoff document.
+
+## [2026-05-15] — Framework choice: Express + Vite + Drizzle
+
+**Decision:** Use Express + TypeScript (ESM) as the backend, Vite + React 19 as the frontend, Drizzle ORM for PostgreSQL access, Tailwind v4 for styling, wouter for client routing, and TanStack Query for data fetching.
+**Why:** Replit Agent selected this stack during scaffold as the best fit for Replit Auth, managed PostgreSQL, and the project's simple server-side rendering needs. No Next.js or Remix — simpler is appropriate for a private league app.
+**Trade-off:** Two separate dev servers (frontend :5000, backend :3001) with Vite proxying `/api/*`; slightly more config than a unified framework.
+**Impact:** Dev workflow uses `concurrently`; production builds the Vite bundle and serves it from Express on port 5000.
+
+## [2026-05-15] — SameSite=None session cookie for Replit iframe context
+
+**Decision:** Set `sameSite: "none"` (with `secure: true`) on the session cookie.
+**Why:** The Replit preview pane embeds the app in an iframe served from `replit.com`. With the default `SameSite=Lax`, the browser treats API calls from within the iframe as cross-site requests and withholds the session cookie, breaking auth after login.
+**Trade-off:** `SameSite=None` is less restrictive. Acceptable because the app is private and HTTPS-only.
+**Impact:** Session persists correctly in both the Replit preview iframe and direct browser access.
+
+## [2026-05-15] — Auto-create league member on profile setup
+
+**Decision:** If a user who logs in has no matching `league_members` record (by email or Replit username), auto-create one when they submit the profile setup form. The first member to do this becomes admin; subsequent ones become players.
+**Why:** For this private friend group, anyone who has a Replit account and can reach the app URL is effectively trusted. Pre-seeding approved records for every friend before they can set up a profile creates unnecessary admin friction for v1.
+**Trade-off:** Any Replit user who discovers the URL can create a profile. Acceptable for a private friend group; revisit if the app is ever more broadly accessible.
+**Impact:** Admin only needs to share the app URL with friends. No pre-seeding of `league_members` required before first login.
