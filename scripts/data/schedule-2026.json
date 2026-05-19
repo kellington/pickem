@@ -1,0 +1,37 @@
+{
+  "_note": "PLACEHOLDER DATA — replace matchups with the real 2026 NFL schedule before the season starts.",
+  "_source": "https://operations.nfl.com/gameday/nfl-schedule/2026-nfl-schedule/",
+  "_format": {
+    "away": "team abbreviation (must match nfl_teams.abbreviation)",
+    "home": "team abbreviation",
+    "date": "YYYY-MM-DD in the league's local timezone (America/Edmonton)",
+    "time": "HH:MM in Eastern Time (ET), or null for TBD",
+    "neutral": "true only for international/neutral-site games",
+    "site": "stadium/city name for neutral-site games, otherwise omit",
+    "broadcast": "network name, e.g. NBC, CBS, FOX, ESPN, ABC, Prime",
+    "flex": "true if this game is in a flex window (SNF after week 5, MNF)"
+  },
+  "weeks": [
+    {
+      "week": 1,
+      "games": [
+        { "away": "KC",  "home": "LAC", "date": "2026-09-03", "time": "20:20", "broadcast": "NBC", "flex": false },
+        { "away": "PHI", "home": "DAL", "date": "2026-09-06", "time": "13:00", "broadcast": "FOX", "flex": false },
+        { "away": "BUF", "home": "MIA", "date": "2026-09-06", "time": "13:00", "broadcast": "CBS", "flex": false },
+        { "away": "BAL", "home": "CIN", "date": "2026-09-06", "time": "13:00", "broadcast": "CBS", "flex": false },
+        { "away": "HOU", "home": "TEN", "date": "2026-09-06", "time": "13:00", "broadcast": "CBS", "flex": false },
+        { "away": "ATL", "home": "NO",  "date": "2026-09-06", "time": "13:00", "broadcast": "FOX", "flex": false },
+        { "away": "NYG", "home": "WAS", "date": "2026-09-06", "time": "13:00", "broadcast": "FOX", "flex": false },
+        { "away": "JAX", "home": "IND", "date": "2026-09-06", "time": "13:00", "broadcast": "CBS", "flex": false },
+        { "away": "CLE", "home": "PIT", "date": "2026-09-06", "time": "13:00", "broadcast": "CBS", "flex": false },
+        { "away": "DEN", "home": "LV",  "date": "2026-09-06", "time": "16:05", "broadcast": "CBS", "flex": false },
+        { "away": "SEA", "home": "ARI", "date": "2026-09-06", "time": "16:05", "broadcast": "FOX", "flex": false },
+        { "away": "NE",  "home": "NYJ", "date": "2026-09-06", "time": "16:25", "broadcast": "CBS", "flex": false },
+        { "away": "CAR", "home": "TB",  "date": "2026-09-06", "time": "16:25", "broadcast": "FOX", "flex": false },
+        { "away": "SF",  "home": "LAR", "date": "2026-09-06", "time": "20:20", "broadcast": "NBC", "flex": false },
+        { "away": "CHI", "home": "GB",  "date": "2026-09-07", "time": "19:30", "broadcast": "ESPN", "flex": false },
+        { "away": "MIN", "home": "DET", "date": "2026-09-07", "time": "20:15", "broadcast": "ABC", "flex": false }
+      ]
+    }
+  ]
+}

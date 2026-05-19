@@ -136,6 +136,14 @@ export function registerRoutes(app: Express) {
           .where(eq(playerProfiles.leagueMemberId, member.id));
       }
 
+      // Auto-enroll in all active seasons
+      const activeSeasons = await db.select().from(seasons).where(eq(seasons.status, "active"));
+      for (const season of activeSeasons) {
+        await db.insert(seasonMembers)
+          .values({ seasonId: season.id, leagueMemberId: member.id, isActive: true, displayOrder: 0 })
+          .onConflictDoNothing();
+      }
+
       res.json({ ok: true });
     } catch (err) {
       console.error(err);
@@ -220,9 +228,14 @@ export function registerRoutes(app: Express) {
       const [week] = await db.select().from(weeks).where(eq(weeks.id, game.weekId));
       if (!week) return res.status(404).json({ message: "Week not found" });
 
-      const [sm] = await db.select().from(seasonMembers)
+      let [sm] = await db.select().from(seasonMembers)
         .where(and(eq(seasonMembers.leagueMemberId, member.id), eq(seasonMembers.seasonId, game.seasonId)));
-      if (!sm) return res.status(403).json({ message: "Not enrolled in this season" });
+      if (!sm) {
+        // Auto-enroll active members who completed profile setup before season was active
+        [sm] = await db.insert(seasonMembers)
+          .values({ seasonId: game.seasonId, leagueMemberId: member.id, isActive: true, displayOrder: 0 })
+          .returning();
+      }
 
       const weekGamesList = await db.select().from(games).where(eq(games.weekId, game.weekId));
       const existingPicks = await db.select().from(picks)
