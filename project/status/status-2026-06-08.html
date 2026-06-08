@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Pick'em — Project Status · 2026-06-08</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f9fafb;
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  a { color: #2563eb; text-decoration: none; }
+
+  /* ── Header ── */
+  .header {
+    background: #166534;
+    color: #fff;
+    padding: 20px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-tag {
+    font-size: 11px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 999px;
+    padding: 2px 10px;
+    color: #d1fae5;
+  }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .header-date { color: #d1fae5; font-size: 12px; }
+  .deadline-badge {
+    background: #d97706;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 5px 14px;
+    letter-spacing: 0.2px;
+  }
+
+  /* ── Layout ── */
+  .main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── Cards ── */
+  .card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    padding: 20px 22px;
+  }
+  .card h2 {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #6b7280;
+    margin-bottom: 14px;
+  }
+
+  /* ── Focus card ── */
+  .focus-card {
+    border-left: 5px solid #d97706;
+    background: #fffbeb;
+  }
+  .focus-card h2 { color: #92400e; }
+  .focus-card p { font-size: 15px; font-weight: 500; color: #1c1917; }
+  .focus-card .sub { font-size: 13px; color: #57534e; margin-top: 6px; }
+
+  /* ── Metrics row ── */
+  .metrics { display: flex; flex-wrap: wrap; gap: 12px; }
+  .metric-pill {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 16px;
+    min-width: 130px;
+    flex: 1;
+  }
+  .metric-pill .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px; }
+  .metric-pill .value { font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 2px; }
+  .metric-pill .sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+
+  /* ── Current truth ── */
+  .truth p { font-size: 14px; color: #1e293b; line-height: 1.7; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+  .ci { font-weight: 700; font-size: 15px; flex-shrink: 0; margin-top: -1px; }
+  .ci-done { color: #16a34a; }
+  .ci-fail { color: #dc2626; }
+  .ci-amber { color: #d97706; }
+  .progress-bar-wrap { background: #e5e7eb; border-radius: 999px; height: 10px; margin-top: 12px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 999px; background: #16a34a; }
+  .progress-label { font-size: 12px; color: #6b7280; margin-top: 5px; }
+
+  /* ── Flow diagram ── */
+  .flow-wrap { overflow-x: auto; padding-bottom: 6px; }
+  .flow { display: flex; align-items: center; gap: 0; min-width: 600px; }
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 80px;
+  }
+  .flow-circle {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    border: 3px solid;
+  }
+  .flow-circle.green  { background: #dcfce7; border-color: #16a34a; color: #166534; }
+  .flow-circle.amber  { background: #fef3c7; border-color: #d97706; color: #92400e; }
+  .flow-circle.red    { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+  .flow-circle.grey   { background: #f3f4f6; border-color: #d1d5db; color: #9ca3af; }
+  .flow-label { font-size: 10px; text-align: center; color: #374151; line-height: 1.3; }
+  .flow-label .badge { font-size: 9px; color: #d97706; font-weight: 600; display: block; }
+  .flow-arrow { color: #9ca3af; font-size: 18px; padding: 0 2px; flex-shrink: 0; }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #6b7280; padding: 6px 10px; border-bottom: 2px solid #e5e7eb; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.done { background: #f0fdf4; color: #166534; font-weight: 600; }
+  td.scaffolded { background: #fffbeb; color: #92400e; font-weight: 600; }
+  td.missing { background: #fef2f2; color: #991b1b; font-weight: 600; }
+
+  /* ── Severity badges ── */
+  .sev-high  { background: #fee2e2; color: #991b1b; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+  .sev-med   { background: #fef3c7; color: #92400e; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+  .sev-low   { background: #f3f4f6; color: #374151; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+
+  /* ── Deadline tracker ── */
+  .tracker-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .tracker-col h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+  .tracker-col.now h3  { color: #dc2626; }
+  .tracker-col.next h3 { color: #d97706; }
+  .tracker-col.bfr h3  { color: #2563eb; }
+  .tracker-col ol { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .tracker-col li { font-size: 12px; color: #374151; }
+  .tracker-col li.critical { color: #d97706; font-weight: 600; }
+
+  /* ── Timeline ── */
+  .timeline { margin-top: 18px; }
+  .tl-bar { display: flex; align-items: stretch; border-radius: 8px; overflow: hidden; height: 32px; }
+  .tl-seg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    flex: 1;
+    padding: 0 4px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .tl-today   { background: #166534; }
+  .tl-sched   { background: #2563eb; }
+  .tl-picks   { background: #7c3aed; }
+  .tl-scoring { background: #0891b2; }
+  .tl-friends { background: #d97706; }
+  .tl-deadline{ background: #dc2626; }
+  .tl-labels { display: flex; }
+  .tl-label { flex: 1; font-size: 9px; color: #6b7280; padding: 4px 2px; text-align: center; }
+
+  /* ── Roadmap stages ── */
+  .stages { display: flex; flex-direction: column; gap: 10px; }
+  .stage { display: flex; align-items: flex-start; gap: 14px; }
+  .stage-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .stage-dot.done   { background: #16a34a; }
+  .stage-dot.active { background: #d97706; animation: pulse 1.5s ease-in-out infinite; }
+  .stage-dot.pending{ background: #d1d5db; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .stage-text .stage-name { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .stage-text .stage-outcome { font-size: 12px; color: #6b7280; }
+  .stage-text .stage-note { font-size: 11px; color: #d97706; margin-top: 2px; }
+
+  /* ── Decision entries ── */
+  .decisions { display: flex; flex-direction: column; gap: 12px; }
+  .decision { display: flex; gap: 12px; align-items: flex-start; }
+  .decision-date { background: #f1f5f9; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #475569; white-space: nowrap; flex-shrink: 0; font-weight: 600; margin-top: 1px; }
+  .decision-body .title { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .decision-body .rationale { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+  /* ── Stack card ── */
+  .stack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stack-item { font-size: 12px; }
+  .stack-item .sk { color: #6b7280; }
+  .stack-item .sv { color: #0f172a; font-weight: 500; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    font-size: 11px;
+    color: #94a3b8;
+    padding: 20px 16px 32px;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 8px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .tracker-cols { grid-template-columns: 1fr; }
+    .stack-grid   { grid-template-columns: 1fr; }
+    .metrics      { flex-direction: column; }
+    .metric-pill  { min-width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── 1. HEADER ── -->
+<div class="header">
+  <div>
+    <div class="header-title">NFL Pick'em</div>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+      <span class="header-tag">Private league · ~15 friends</span>
+      <span class="header-tag">Replit</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="header-date">2026-06-08</span>
+    <span class="deadline-badge">⏰ 68 days to deadline</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── 10. NEXT SESSION FOCUS (most prominent after header) ── -->
+  <div class="card focus-card">
+    <h2>Next Session Focus</h2>
+    <p>Load at least one real Week 1 game into PostgreSQL to unblock the pick submission flow.</p>
+    <p class="sub">Without a single game row, nothing downstream — pick submission, cutoff enforcement, scoring, standings, or Group Picks — can be exercised end-to-end. Decide source first (manual entry of 1–2 games vs. scraping the NFL schedule page), then verify pick submission works before touching anything else.</p>
+  </div>
+
+  <!-- ── 2. KEY METRICS ── -->
+  <div class="card">
+    <h2>Key Metrics</h2>
+    <div class="metrics">
+      <div class="metric-pill">
+        <div class="label">Milestone</div>
+        <div class="value" style="font-size:13px;margin-top:4px;">Basic Scaffold &amp; Week 1 Workflow</div>
+      </div>
+      <div class="metric-pill">
+        <div class="label">Milestone Progress</div>
+        <div class="value">46%</div>
+        <div class="sub">6 of 13 items done</div>
+      </div>
+      <div class="metric-pill">
+        <div class="label">Roadmap Stage</div>
+        <div class="value">2 of 6</div>
+        <div class="sub">Game Schedule</div>
+      </div>
+      <div class="metric-pill">
+        <div class="label">Known Issues</div>
+        <div class="value">7</div>
+        <div class="sub">from STATE.md</div>
+      </div>
+      <div class="metric-pill">
+        <div class="label">Now Tasks</div>
+        <div class="value">3</div>
+        <div class="sub">unblocked</div>
+      </div>
+      <div class="metric-pill">
+        <div class="label">Days to Deadline</div>
+        <div class="value" style="color:#d97706;">68</div>
+        <div class="sub">mid-August 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. CURRENT TRUTH ── -->
+  <div class="card truth">
+    <h2>Current Truth</h2>
+    <p>
+      The app is scaffolded and running on Replit with working auth, profile setup, and database seed — but it cannot actually be used yet because no game schedule has been loaded. Every feature that matters to players (picking winners, assigning confidence points, seeing group picks, viewing standings) is scaffolded but completely untested, because there are zero game rows in the database. The single most important next step is loading even one real Week 1 game to unblock the entire pick flow. The deadline is less than 10 weeks away and the NFL regular season starts in early September 2026, meaning the app needs to be in players' hands by mid-August for a real dry run — that leaves very little margin for the five remaining roadmap stages.
+    </p>
+  </div>
+
+  <!-- ── 4. MILESTONE PROGRESS ── -->
+  <div class="card">
+    <h2>Milestone Progress — Definition of Done</h2>
+    <ul class="checklist">
+      <li><span class="ci ci-done">✓</span><span>Stack, database, auth, hosting, and testing conventions are chosen and reflected in AGENTS.md.</span></li>
+      <li><span class="ci ci-done">✓</span><span>The app can be run locally/on Replit by following documented commands.</span></li>
+      <li><span class="ci ci-done">✓</span><span>The app has a Replit-ready scaffold with a database connection, schema setup, and seed commands.</span></li>
+      <li><span class="ci ci-done">✓</span><span>Approved users can log in with Replit Auth.</span></li>
+      <li><span class="ci ci-done">✓</span><span>Each player can set a team name, with initials used as the default visual identity.</span></li>
+      <li><span class="ci ci-amber">~</span><span>NFL teams and the 2026 regular-season schedule can be bootstrapped into PostgreSQL. <em style="color:#d97706;">(Teams done; game schedule not yet loaded.)</em></span></li>
+      <li><span class="ci ci-fail">✗</span><span>Players can pick winners for each Week 1 game. <em style="color:#dc2626;">Blocked — no game schedule.</em></span></li>
+      <li><span class="ci ci-fail">✗</span><span>Players can assign each confidence value exactly once for the week.</span></li>
+      <li><span class="ci ci-fail">✗</span><span>Players can edit picks before each game's configured cutoff time.</span></li>
+      <li><span class="ci ci-fail">✗</span><span>Picks for each game are hidden from other players until that game starts.</span></li>
+      <li><span class="ci ci-fail">✗</span><span>Results can be entered after games complete.</span></li>
+      <li><span class="ci ci-fail">✗</span><span>A batch scoring workflow calculates weekly points and season totals.</span></li>
+      <li><span class="ci ci-fail">✗</span><span>Players can view My Picks, Group Picks, and basic Standings views.</span></li>
+    </ul>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" style="width: 46%;"></div>
+    </div>
+    <div class="progress-label">6 of 13 complete (46%) · Critical blocker: no game schedule loaded</div>
+  </div>
+
+  <!-- ── 5. APP READINESS ── -->
+  <div class="card">
+    <h2>App Readiness — Core User Flows</h2>
+    <div class="flow-wrap">
+      <div class="flow">
+        <div class="flow-node">
+          <div class="flow-circle green">✓</div>
+          <div class="flow-label">Login</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-circle green">✓</div>
+          <div class="flow-label">Profile<br>Setup</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-circle red">✗</div>
+          <div class="flow-label">View Week<span class="badge">no games</span></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-circle amber">~</div>
+          <div class="flow-label">Submit Picks<span class="badge">untested</span></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-circle amber">~</div>
+          <div class="flow-label">Group Picks<span class="badge">untested</span></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-circle amber">~</div>
+          <div class="flow-label">Standings<span class="badge">untested</span></div>
+        </div>
+      </div>
+    </div>
+
+    <table style="margin-top:16px;">
+      <thead>
+        <tr>
+          <th>Flow</th>
+          <th>Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Replit Auth login</td>
+          <td class="done">✓ Working</td>
+          <td>OIDC login verified; SameSite=None cookie fix in place for iframe</td>
+        </tr>
+        <tr>
+          <td>Profile setup</td>
+          <td class="done">✓ Working</td>
+          <td>Auto-creates league member; first user becomes admin</td>
+        </tr>
+        <tr>
+          <td>Game schedule loaded</td>
+          <td class="missing">✗ Not built</td>
+          <td>Zero game rows in DB — this blocks everything downstream</td>
+        </tr>
+        <tr>
+          <td>Pick submission (confidence pts)</td>
+          <td class="scaffolded">~ Scaffolded</td>
+          <td>Route wired; untested — no game rows to pick against</td>
+        </tr>
+        <tr>
+          <td>Cutoff enforcement</td>
+          <td class="scaffolded">~ Scaffolded</td>
+          <td>Per-game cutoff model in place; logic untested</td>
+        </tr>
+        <tr>
+          <td>Scoring batch</td>
+          <td class="scaffolded">~ Scaffolded</td>
+          <td>/api/admin/score-week/:id exists; untested against real picks</td>
+        </tr>
+        <tr>
+          <td>Group Picks reveal</td>
+          <td class="scaffolded">~ Scaffolded</td>
+          <td>Per-game reveal-after-kickoff logic untested</td>
+        </tr>
+        <tr>
+          <td>Weekly standings</td>
+          <td class="scaffolded">~ Scaffolded</td>
+          <td>Route scaffolded; untested against real scores</td>
+        </tr>
+        <tr>
+          <td>Season standings (dropped weeks)</td>
+          <td class="scaffolded">~ Scaffolded</td>
+          <td>Dropped-week config in season row; calculation untested</td>
+        </tr>
+        <tr>
+          <td>Playoff phase</td>
+          <td class="missing">✗ Not built</td>
+          <td>Data model separates regular season from playoffs; no UI/logic yet</td>
+        </tr>
+        <tr>
+          <td>Replit Deployment verified</td>
+          <td class="scaffolded">~ Configured</td>
+          <td>Autoscale deployment configured; end-to-end not verified in prod</td>
+        </tr>
+        <tr>
+          <td>Friends onboarded (Replit accounts)</td>
+          <td class="missing">✗ Not started</td>
+          <td>Share URL approach approved; friends haven't created accounts yet</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── 6. DEADLINE TRACKER ── -->
+  <div class="card">
+    <h2>Deadline Tracker — Critical Path to Launch</h2>
+    <div class="tracker-cols">
+      <div class="tracker-col now">
+        <h3>Now (unblocked)</h3>
+        <ol>
+          <li class="critical">Load 2026 NFL game schedule — decide source, load at least Week 1</li>
+          <li class="critical">Verify pick submission end-to-end (confidence-point validation, cutoff, saved-pick count)</li>
+          <li class="critical">Verify scoring batch: enter result, run score-week, confirm pick_scores rows</li>
+        </ol>
+      </div>
+      <div class="tracker-col next">
+        <h3>Next (sequential)</h3>
+        <ol>
+          <li class="critical">Verify Group Picks visibility (hidden until kickoff, then revealed)</li>
+          <li class="critical">Verify standings: weekly, season totals, dropped-week adjusted totals</li>
+          <li>Add unit tests for scoring, validation, cutoff, dropped-week logic</li>
+          <li>Seed league member records; share URL with friends</li>
+        </ol>
+      </div>
+      <div class="tracker-col bfr">
+        <h3>Before Launch</h3>
+        <ol>
+          <li class="critical">Validate Replit Deployment end-to-end in production</li>
+          <li class="critical">Full 2026 season schedule loaded</li>
+          <li>Friends onboarded with Replit accounts</li>
+          <li>Playoff phase built and verified</li>
+          <li>Admin ergonomics confirmed (database-level ops acceptable for v1)</li>
+          <li>Optional: team images, stickers/badges, display-only odds</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-bar">
+        <div class="tl-seg tl-today">Today<br>Jun 8</div>
+        <div class="tl-seg tl-sched">Game<br>Schedule</div>
+        <div class="tl-seg tl-picks">Pick Flow<br>Verified</div>
+        <div class="tl-seg tl-scoring">Scoring<br>Verified</div>
+        <div class="tl-seg tl-friends">Friends<br>Onboarded</div>
+        <div class="tl-seg tl-deadline">Mid-Aug<br>Deadline</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 7. ROADMAP STAGES ── -->
+  <div class="card">
+    <h2>Roadmap Stages</h2>
+    <div class="stages">
+      <div class="stage">
+        <div class="stage-dot done"></div>
+        <div class="stage-text">
+          <div class="stage-name">1. Foundation</div>
+          <div class="stage-outcome">App runs, auth works, database seeded — the skeleton is live.</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-dot active"></div>
+        <div class="stage-text">
+          <div class="stage-name">2. Game Schedule</div>
+          <div class="stage-outcome">Real games loaded; pick flow can be tested end-to-end.</div>
+          <div class="stage-note">Active — blocked on sourcing and loading 2026 NFL schedule data.</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-dot active"></div>
+        <div class="stage-text">
+          <div class="stage-name">3. Pick Submission</div>
+          <div class="stage-outcome">Friends can submit weekly picks with confidence points before cutoff.</div>
+          <div class="stage-note">Scaffolded — cannot verify until Stage 2 is complete.</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-dot pending"></div>
+        <div class="stage-text">
+          <div class="stage-name">4. Scoring and Standings</div>
+          <div class="stage-outcome">Scores calculate correctly; league can track weekly and season rankings.</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-dot pending"></div>
+        <div class="stage-text">
+          <div class="stage-name">5. Dropped Weeks and Playoffs</div>
+          <div class="stage-outcome">Full regular season with dropped-week standings and a separate playoff competition.</div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-dot pending"></div>
+        <div class="stage-text">
+          <div class="stage-name">6. League Features</div>
+          <div class="stage-outcome">Team images, stickers, bonus mechanics, admin ergonomics — polish for a real season.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 8. OPEN RISKS ── -->
+  <div class="card">
+    <h2>Open Risks</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Risk</th>
+          <th>Severity</th>
+          <th>Impact</th>
+          <th>Next Move</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>No game schedule loaded</strong></td>
+          <td><span class="sev-high">High</span></td>
+          <td>Blocks all pick submission, scoring, standings, and Group Picks testing</td>
+          <td>Decide source this session; hand-enter Week 1 if scraping takes too long</td>
+        </tr>
+        <tr>
+          <td><strong>No automated tests for scoring / standings logic</strong></td>
+          <td><span class="sev-high">High</span></td>
+          <td>Bugs in confidence-point validation or dropped-week calculation won't surface until real-season data exposes them</td>
+          <td>Add unit tests for scoring, cutoff, and dropped-week calculation after first real game is loaded</td>
+        </tr>
+        <tr>
+          <td><strong>Replit Auth requires friends to create Replit accounts</strong></td>
+          <td><span class="sev-med">Medium</span></td>
+          <td>Friction for non-technical friends; could reduce participation</td>
+          <td>Validate with the group now — confirm everyone is willing to create a Replit account before onboarding</td>
+        </tr>
+        <tr>
+          <td><strong>Replit Deployment not verified end-to-end</strong></td>
+          <td><span class="sev-med">Medium</span></td>
+          <td>App could behave differently in production (session handling, DB connection, env vars)</td>
+          <td>Deploy to production and run through login + pick submission once pick flow is verified in dev</td>
+        </tr>
+        <tr>
+          <td><strong>NFL schedule flex / game-time updates</strong></td>
+          <td><span class="sev-med">Medium</span></td>
+          <td>Cutoff times become wrong if kickoff times change mid-week</td>
+          <td>Define a manual update process for the admin; document which DB fields to update when NFL flexes games</td>
+        </tr>
+        <tr>
+          <td><strong>2026 NFL schedule source format not confirmed</strong></td>
+          <td><span class="sev-med">Medium</span></td>
+          <td>Parsing or scraping effort unknown; could delay Stage 2 significantly</td>
+          <td>Check NFL Football Operations schedule page format; fall back to manual CSV or hand-entry of 18 weeks</td>
+        </tr>
+        <tr>
+          <td><strong>Scoring and standings logic has hidden bugs</strong></td>
+          <td><span class="sev-med">Medium</span></td>
+          <td>Wrong standings during the season would erode trust in the app</td>
+          <td>Write unit tests before relying on these for real-season data</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── 9. KEY DECISIONS ── -->
+  <div class="card">
+    <h2>Key Decisions (5 Most Recent)</h2>
+    <div class="decisions">
+      <div class="decision">
+        <div class="decision-date">2026-05-15</div>
+        <div class="decision-body">
+          <div class="title">Auto-create league member on profile setup</div>
+          <div class="rationale">Anyone who can reach the app URL is trusted; pre-seeding approved records before first login creates unnecessary admin friction for v1.</div>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="decision-date">2026-05-15</div>
+        <div class="decision-body">
+          <div class="title">SameSite=None session cookie for Replit iframe context</div>
+          <div class="rationale">The Replit preview embeds the app in an iframe; default SameSite=Lax witholds the cookie on cross-site API calls, breaking auth.</div>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="decision-date">2026-05-15</div>
+        <div class="decision-body">
+          <div class="title">Framework: Express + Vite + Drizzle ORM + Tailwind v4</div>
+          <div class="rationale">Replit Agent selected this stack during scaffold as the best fit for Replit Auth, managed PostgreSQL, and the private league's simple needs.</div>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="decision-date">2026-05-15</div>
+        <div class="decision-body">
+          <div class="title">Replit Agent handoff blueprint before import</div>
+          <div class="rationale">Documented the approved v1 data model in REPLIT_AGENT_HANDOFF.md so the agent could scaffold without re-deciding product fundamentals.</div>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="decision-date">2026-05-15</div>
+        <div class="decision-body">
+          <div class="title">Derived standings from pick scores (not a maintained table)</div>
+          <div class="rationale">Standings should be reproducible from picks, results, scoring rules, and dropped-week config — not from a manually maintained source-of-truth table.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 11. STACK REFERENCE ── -->
+  <div class="card">
+    <h2>Stack Reference</h2>
+    <div class="stack-grid">
+      <div class="stack-item"><span class="sk">Platform: </span><span class="sv">Replit (Auth, PostgreSQL, Deployments)</span></div>
+      <div class="stack-item"><span class="sk">Frontend: </span><span class="sv">React 19 + Vite + TypeScript + Tailwind v4 + wouter + TanStack Query</span></div>
+      <div class="stack-item"><span class="sk">Backend: </span><span class="sv">Express + TypeScript (ESM) + Drizzle ORM</span></div>
+      <div class="stack-item"><span class="sk">Dev: </span><span class="sv">npm run dev (frontend :5000, backend :3001 via Vite proxy)</span></div>
+      <div class="stack-item"><span class="sk">Deploy: </span><span class="sv">npm run build + npm run start:prod</span></div>
+      <div class="stack-item"><span class="sk">Secrets: </span><span class="sv">DATABASE_URL, SESSION_SECRET, REPL_ID, REPLIT_DOMAINS, ISSUER_URL</span></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div class="footer">
+  Generated 2026-06-08 · NFL Pick'em · Private league app · Deadline: mid-August 2026<br>
+  Derived from PROJECT.md, PLAN.md, STATE.md, TASKS.md, DECISIONS.md, project/diary/diary-2026-06.md, git log
+</div>
+
+</body>
+</html>
