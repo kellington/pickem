@@ -14,6 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "seed:teams": "tsx scripts/seed-teams.ts",
     "seed:season": "tsx scripts/seed-season.ts",
+    "fetch:schedule": "tsx scripts/fetch-schedule.ts",
+    "seed:games": "tsx scripts/seed-games.ts",
     "test": "tsx --test server/tests/*.test.ts"
   },
   "keywords": [],
