@@ -1,6 +1,6 @@
 ---
 name: generate-project-status
-description: Generate a dated HTML status page (project/status/status-YYYY-MM-DD.html) summarising the pickem project from its protocol files, recent diary, and git history. Covers what's built, what's left, the hard deadline, and the next session focus.
+description: Generate a dated HTML status page (project/status/status-YYYY-MM-DD.html) summarising the pickem project from its protocol files, recent diary, git history, and user communications. Covers what's built, what's left, the hard deadline, the next session focus, and a summary of feedback received so far.
 ---
 
 Generate a project status HTML report for pickem.
@@ -18,6 +18,10 @@ Generate a project status HTML report for pickem.
 6. The most recent diary file under `project/diary/` — check `ls project/diary/` and read the newest one
 7. Run `git log --oneline -15` for recent commits
 8. Run `git log -3 --stat` for detail on the last 3 commits
+
+**Communications:**
+9. Run `ls -lt project/communication/` to list all files sorted newest-first
+10. Read as many as needed to understand the full arc of feedback — always read the most recent file(s); skim older ones for themes. Files may be PDFs, text, or markdown. For PDFs, extract what you can from the filename and any readable content.
 
 ## Output
 
@@ -132,10 +136,30 @@ Each row needs a "Next move" — not just a description of the problem.
 ### 9. Key Decisions (recent)
 Pull the 5 most recent entries from DECISIONS.md (scan from bottom). For each: date chip, title, one-sentence rationale.
 
-### 10. Next Session Focus
+### 10. User Communications & Feedback
+Pull from all files in `project/communication/`, newest first.
+
+Show two sub-sections:
+
+**Latest feedback** — a card per file (or per distinct message/email if a file contains multiple). For each:
+- Date chip (from filename or file content)
+- Sender / subject line if available
+- 2–4 bullet points summarising the key points, requests, or reactions
+- Any open action items or questions raised that haven't been addressed yet, highlighted in amber
+
+**Feedback themes** — if there are 2+ files, summarise recurring themes across all communications as a short bulleted list (e.g. "3 people asked about X", "concern raised about Y"). If only one file exists, skip this sub-section.
+
+If `project/communication/` is empty or does not exist, show a placeholder card: "No user communications on file yet."
+
+Visual style for this section:
+- Card header in blue (`#1d4ed8`) to visually distinguish it from project-state cards
+- Unresolved action items: amber left-border pill
+- Keep summaries concise — this is a reminder, not a transcript
+
+### 11. Next Session Focus
 A single highlighted card: "If you only have one session this week, do this." Derive from the top item in TASKS.md "Now" and the most critical blocker in STATE.md.
 
-### 11. Stack Reference
+### 12. Stack Reference
 A compact card (not a full section):
 - **Platform:** Replit (Auth, PostgreSQL, Deployments)
 - **Frontend:** React 19 + Vite + TypeScript + Tailwind v4 + wouter + TanStack Query
@@ -144,8 +168,8 @@ A compact card (not a full section):
 - **Deploy:** `npm run build` + `npm run start:prod`
 - **Required secrets:** DATABASE_URL, SESSION_SECRET, REPL_ID, REPLIT_DOMAINS, ISSUER_URL
 
-### 12. Footer
-"Generated YYYY-MM-DD · NFL Pick'em · Private league app · Deadline: mid-August 2026 · derived from PROJECT.md, PLAN.md, STATE.md, TASKS.md, DECISIONS.md, diary, git log"
+### 13. Footer
+"Generated YYYY-MM-DD · NFL Pick'em · Private league app · Deadline: mid-August 2026 · derived from PROJECT.md, PLAN.md, STATE.md, TASKS.md, DECISIONS.md, diary, git log, project/communication"
 
 ## Visual style
 
