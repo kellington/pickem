@@ -14,12 +14,9 @@
     "db:studio": "drizzle-kit studio",
     "seed:teams": "tsx scripts/seed-teams.ts",
     "seed:season": "tsx scripts/seed-season.ts",
-<<<<<<< HEAD
     "fetch:schedule": "tsx scripts/fetch-schedule.ts",
     "seed:games": "tsx scripts/seed-games.ts",
-=======
     "seed:schedule": "tsx scripts/seed-schedule.ts",
->>>>>>> cf34edd (Add NFL schedule and enable pick submissions)
     "test": "tsx --test server/tests/*.test.ts"
   },
   "keywords": [],
