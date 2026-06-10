@@ -23,6 +23,10 @@ Generate a project status HTML report for pickem.
 9. Run `ls -lt project/communication/` to list all files sorted newest-first
 10. Read as many as needed to understand the full arc of feedback — always read the most recent file(s); skim older ones for themes. Files may be PDFs, text, or markdown. For PDFs, extract what you can from the filename and any readable content.
 
+**Ideas:**
+11. Read `project/ideas/ideas.md` (always exists — scan all sections)
+12. While reading the diary and communications above, note any feature ideas or requests mentioned there too — they count as idea sources
+
 ## Output
 
 Create a single self-contained HTML file at:
@@ -156,10 +160,25 @@ Visual style for this section:
 - Unresolved action items: amber left-border pill
 - Keep summaries concise — this is a reminder, not a transcript
 
-### 11. Next Session Focus
+### 11. Feature Ideas
+Pull ideas from all three sources — `project/ideas/ideas.md`, any feature requests mentioned in `project/communication/` files, and any ideas noted in the diary — then deduplicate and pick the **top 10 most interesting or frequently mentioned**.
+
+Display as a compact card grid (2 columns on wide viewports, 1 on narrow). Each idea gets:
+- A short bold title (3–6 words)
+- One sentence description
+- A source tag: `ideas.md` / `communication` / `diary` (show multiple if the idea appears in more than one source)
+- A category pill: **Engagement** (catch-up mechanics, bonus points, stickers) · **UX** (UI improvements, auto-pick) · **Rules** (scoring variants, playoff format) · **Data** (odds, schedule info)
+
+Ranking priority: ideas mentioned in communications (user-requested) > ideas in ideas.md under "New Features" > ideas mentioned only in diary. Break ties by how well they serve the goal of "keeping the season interesting" (stated in ideas.md).
+
+If fewer than 3 ideas can be found across all sources, show what exists and note the count.
+
+Visual style: light purple/violet tint (`#f5f3ff` background, `#7c3aed` header) to distinguish from project-state and communications cards.
+
+### 12. Next Session Focus
 A single highlighted card: "If you only have one session this week, do this." Derive from the top item in TASKS.md "Now" and the most critical blocker in STATE.md.
 
-### 12. Stack Reference
+### 13. Stack Reference
 A compact card (not a full section):
 - **Platform:** Replit (Auth, PostgreSQL, Deployments)
 - **Frontend:** React 19 + Vite + TypeScript + Tailwind v4 + wouter + TanStack Query
@@ -168,8 +187,8 @@ A compact card (not a full section):
 - **Deploy:** `npm run build` + `npm run start:prod`
 - **Required secrets:** DATABASE_URL, SESSION_SECRET, REPL_ID, REPLIT_DOMAINS, ISSUER_URL
 
-### 13. Footer
-"Generated YYYY-MM-DD · NFL Pick'em · Private league app · Deadline: mid-August 2026 · derived from PROJECT.md, PLAN.md, STATE.md, TASKS.md, DECISIONS.md, diary, git log, project/communication"
+### 14. Footer
+"Generated YYYY-MM-DD · NFL Pick'em · Private league app · Deadline: mid-August 2026 · derived from PROJECT.md, PLAN.md, STATE.md, TASKS.md, DECISIONS.md, diary, git log, project/communication, project/ideas"
 
 ## Visual style
 
