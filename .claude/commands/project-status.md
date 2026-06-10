@@ -166,3 +166,25 @@ A compact card (not a full section):
 - The days-to-deadline chip must be accurate to today's date
 - After writing the file, confirm the path and list the sections included
 - Keep the tone honest and slightly urgent — this is a deadline-driven project
+
+## Also write STATUS-SUMMARY.md
+
+After writing the HTML file, write (or overwrite) a summary file at `project/status/STATUS-SUMMARY.md` (create the directory if it doesn't exist).
+
+Use this exact format — YAML frontmatter only, no markdown body:
+
+```
+---
+name: Pickem
+tagline: <one sentence — what this project is, derived from the files you just read>
+group: Personal
+profile: Personal Project
+priority: 7
+status: <one sentence — the most important thing about current state right now>
+generated: <today's date YYYY-MM-DD>
+---
+```
+
+- `tagline`: purpose of the project — stable, changes rarely
+- `status`: current state — something that could change next week (build progress, days to deadline, next milestone)
+- Overwrite every run — no date suffix, always one file
