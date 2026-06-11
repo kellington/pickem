@@ -20,6 +20,8 @@ The important choices that shaped scope, architecture, data, workflow, user expe
 - using Replit Agent to continue
     - trying to go back and forth between agents proved problematic in the past
     - largely a problem with Replit and GitHub integration, not multi-agent in general
+- some general file / project management work using Claude
+    - because Claude code just works nicely (vs Codex)
 
 ## Quality and Confidence Checks
 How the work was reviewed, tested, validated, simplified, or improved.
