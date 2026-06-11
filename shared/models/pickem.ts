@@ -198,6 +198,13 @@ export const scheduleImports = pgTable("schedule_imports", {
   notes: text("notes"),
 });
 
+export const featureIdeas = pgTable("feature_ideas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  appUserId: varchar("app_user_id").notNull().references(() => appUsers.id),
+  ideaText: text("idea_text").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
 export const scheduleImportRows = pgTable("schedule_import_rows", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   scheduleImportId: varchar("schedule_import_id").notNull().references(() => scheduleImports.id),

@@ -14,6 +14,7 @@ import {
   picks,
   pickScores,
   weeklyScores,
+  featureIdeas,
 } from "../shared/schema.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { validatePick, scoreBatchForWeek } from "./domain.js";
@@ -376,6 +377,30 @@ export function registerRoutes(app: Express) {
       const weekId = req.params.weekId;
       const result = await scoreBatchForWeek(weekId);
       res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/feature-ideas", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { ideaText } = req.body;
+
+      if (!ideaText?.trim()) {
+        return res.status(400).json({ message: "Idea text is required" });
+      }
+
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      await db.insert(featureIdeas).values({
+        appUserId: user.id,
+        ideaText: ideaText.trim(),
+      });
+
+      res.json({ ok: true });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
