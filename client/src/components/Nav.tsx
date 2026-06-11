@@ -206,7 +206,7 @@ export default function Nav({ me }: { me: any }) {
               onClick={() => setShowList(true)}
               className="text-sm font-medium px-3 py-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
             >
-              Show me all the ideas
+              📋 All Ideas
             </button>
             <a
               href="/status"
