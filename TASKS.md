@@ -8,14 +8,14 @@ If a single item needs more than one session, has hard out-of-scope boundaries, 
 
 - [ ] Verify pick submission end-to-end: sign in as a second test user, submit picks for Week 1, confirm confidence-point validation (each value used exactly once), per-game cutoff enforcement, and saved-pick count shown on Home.
 - [ ] Verify scoring batch: enter a game result, run `POST /api/admin/score-week/:weekId`, confirm `pick_scores` and `weekly_scores` rows are correct.
-- [ ] Onboard at least one friend as a test player — share the app URL; they sign in with Replit and complete profile setup.
+- [ ] Onboard at least one friend as a test player — share the app URL; they sign in with Replit and complete profile setup. Follow up on beta-tester email (sent June 10).
 
 ## Next
 
 - [ ] Verify Group Picks visibility: picks hidden until each game's kickoff, then revealed correctly for all players.
 - [ ] Verify Standings: weekly rankings, season totals, dropped-week adjusted totals, and rank ordering.
 - [ ] Add unit tests for scoring logic, confidence-point validation, cutoff/lock behavior, and dropped-week calculation.
-- [ ] Validate Replit Deployment end-to-end: deploy, confirm login, picks, and scoring work in production.
+- [ ] Validate Replit Deployment end-to-end: log in at geeks-pickem.replit.app, confirm picks and scoring work in production (not just dev).
 
 ## Later
 
@@ -43,6 +43,10 @@ If a single item needs more than one session, has hard out-of-scope boundaries, 
 - [x] `scripts/seed-games.ts` written and run — all 272 games upserted into DB.
 - [x] Fixed `package.json` git conflict markers; all npm scripts restored and working.
 - [x] Added `scripts/check-users.ts` diagnostic script.
-- [x] Created `end-of-session` agent skill at `.agents/skills/end-of-session/SKILL.md`.
+- [x] Fixed deployment build error (path-to-regexp wildcard); app published to geeks-pickem.replit.app.
+- [x] Consolidated agent skills into `.agents/skills/` (end-session, start-session, generate-project-status).
+- [x] Updated `generate-project-status` skill to add User Communications and Feature Ideas sections (14 sections total).
+- [x] Added `feature_ideas` table to schema and DB; `POST` and `GET` API routes; "I have an idea!" and "Show me all the ideas" toolbar buttons with modals.
+- [x] Sent beta-tester email to 15 friends (June 10) with geeks-pickem.replit.app URL.
 
 ---

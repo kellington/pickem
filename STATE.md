@@ -1,10 +1,10 @@
 # State
 
-*Last updated: 2026-06-10 (272 games seeded, pick flow unblocked)*
+*Last updated: 2026-06-10 (beta testers emailed, feature-ideas UI shipped, deployment live)*
 
 ## Summary
 
-The app is fully running on Replit with real 2026 NFL schedule data in the database. Auth, profile setup, and auto-enrollment all work. The DB has 32 teams, a 2026 season (active), 18 week stubs (Week 1 = open), and all 272 regular-season games seeded from ESPN data. The pick submission flow is now unblocked — real games exist for Week 1 (Sept 10–11). Core pick → score → standings logic is wired but not yet verified end-to-end against real data.
+The app is live at **geeks-pickem.replit.app** and a beta-tester email went out to 15 friends today. The DB has 32 teams, a 2026 season (active), 18 week stubs (Week 1 = open), and all 272 regular-season games seeded from ESPN data. The deployment build error is fixed. Core pick → score → standings logic is wired but not yet verified end-to-end against real data. A `feature_ideas` table is in the DB; logged-in users can submit ideas and browse all submissions via two new toolbar buttons.
 
 ## What's working
 
@@ -17,7 +17,9 @@ The app is fully running on Replit with real 2026 NFL schedule data in the datab
 - PostgreSQL connected via Drizzle ORM; schema pushed; 32 NFL teams, 2026 season/weeks, and **272 games seeded**
 - `data/schedule-2026.json` in repo root — 272 games, 18 weeks, real ESPN data, 9 international neutral-site games
 - One user confirmed in DB: `robkellington` — admin, active, profile `teamName=banana`
-- Replit Deployment configured: autoscale, `npm run build` + `npm run start:prod`
+- **Replit Deployment live** at geeks-pickem.replit.app — path-to-regexp wildcard fix applied
+- **Feature Ideas** — `feature_ideas` table in DB; `POST /api/feature-ideas` and `GET /api/feature-ideas` routes; "💡 I have an idea!" and "Show me all the ideas" buttons in the Nav toolbar
+- **Beta-tester email sent** to 15 friends (June 10) with the app URL and request for feedback
 
 ## In progress
 
@@ -30,7 +32,8 @@ The app is fully running on Replit with real 2026 NFL schedule data in the datab
 - **Standings unverified:** dropped-week calculation not tested.
 - **Group Picks visibility unverified:** per-game reveal after kickoff not confirmed working.
 - **No automated tests yet:** scoring, validation, and standings logic need unit coverage.
-- **Friends not yet onboarded:** no other users in DB; sharing the app URL is the mechanism (auto-creates league member on profile setup).
+- **Friends not yet onboarded:** beta email sent; no confirmed sign-ins from friends yet.
+- **PLAN.md drift:** PLAN.md still lists game schedule as "not yet loaded" — it is fully loaded (272 games seeded June 10). Update PLAN.md at the next milestone boundary.
 
 ## Environment / setup
 
