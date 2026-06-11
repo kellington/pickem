@@ -383,6 +383,26 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.get("/api/feature-ideas", isAuthenticated, async (_req, res) => {
+    try {
+      const rows = await db
+        .select({
+          id: featureIdeas.id,
+          ideaText: featureIdeas.ideaText,
+          submittedAt: featureIdeas.submittedAt,
+          displayName: appUsers.displayName,
+          replitUsername: appUsers.replitUsername,
+        })
+        .from(featureIdeas)
+        .innerJoin(appUsers, eq(featureIdeas.appUserId, appUsers.id))
+        .orderBy(desc(featureIdeas.submittedAt));
+      res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   app.post("/api/feature-ideas", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
