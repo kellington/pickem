@@ -21,6 +21,9 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:3001",
       },
+      "/status": {
+        target: "http://localhost:3001",
+      },
     },
   },
   resolve: {

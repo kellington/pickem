@@ -433,8 +433,8 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.get("/status", isAuthenticated, (_req, res) => {
-    const statusDir = path.join(__dirname, "../../project/status");
+  app.get("/status", (_req, res) => {
+    const statusDir = path.join(__dirname, "../project/status");
     let files: string[] = [];
     try {
       files = fs.readdirSync(statusDir)
