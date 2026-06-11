@@ -1,6 +1,12 @@
 import type { Express } from "express";
 import { isAuthenticated } from "./replit_integrations/auth/index.js";
 import { db } from "./db.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 import {
   appUsers,
   leagueMembers,
@@ -425,6 +431,25 @@ export function registerRoutes(app: Express) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
     }
+  });
+
+  app.get("/status", isAuthenticated, (_req, res) => {
+    const statusDir = path.join(__dirname, "../../project/status");
+    let files: string[] = [];
+    try {
+      files = fs.readdirSync(statusDir)
+        .filter((f) => /^status-\d{4}-\d{2}-\d{2}\.html$/.test(f))
+        .sort()
+        .reverse();
+    } catch {
+      return res.status(404).send("Status directory not found.");
+    }
+    if (files.length === 0) {
+      return res.status(404).send("No status report found.");
+    }
+    const latest = path.join(statusDir, files[0]);
+    res.setHeader("Content-Type", "text/html");
+    res.sendFile(latest);
   });
 
   app.get("/api/nfl-teams", isAuthenticated, async (_req, res) => {

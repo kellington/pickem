@@ -209,6 +209,14 @@ export default function Nav({ me }: { me: any }) {
               Show me all the ideas
             </button>
             <a
+              href="/status"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium px-3 py-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+            >
+              📊 Project Status
+            </a>
+            <a
               href="/api/logout"
               className="text-blue-200 hover:text-white text-sm transition-colors ml-1"
             >
