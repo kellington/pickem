@@ -574,68 +574,72 @@ export function registerRoutes(app: Express) {
       const badSeasonIds = badSeasons.map((r) => r.id);
       const log: string[] = [];
 
-      // 1. Migrate season_members from bad seasons to correct season (skip duplicates).
       if (badSeasonIds.length > 0) {
+        // 1. Migrate season_members from bad seasons to correct season (skip duplicates).
         const existing = await db.execute(sql`
           SELECT league_member_id FROM season_members WHERE season_id = ${correctSeason.id}
         `);
         const alreadyIn = new Set((existing.rows as any[]).map((r) => r.league_member_id));
 
-        const toMigrate = await db.execute(sql`
-          SELECT id, league_member_id FROM season_members
-          WHERE season_id = ANY(${badSeasonIds}::uuid[])
-        `);
         let migrated = 0;
-        for (const row of toMigrate.rows as any[]) {
-          if (!alreadyIn.has(row.league_member_id)) {
-            await db.execute(sql`
-              INSERT INTO season_members (league_member_id, season_id)
-              VALUES (${row.league_member_id}, ${correctSeason.id})
-              ON CONFLICT DO NOTHING
-            `);
-            migrated++;
+        for (const badId of badSeasonIds) {
+          const toMigrate = await db.execute(sql`
+            SELECT league_member_id FROM season_members WHERE season_id = ${badId}
+          `);
+          for (const row of toMigrate.rows as any[]) {
+            if (!alreadyIn.has(row.league_member_id)) {
+              await db.execute(sql`
+                INSERT INTO season_members (league_member_id, season_id)
+                VALUES (${row.league_member_id}, ${correctSeason.id})
+                ON CONFLICT DO NOTHING
+              `);
+              alreadyIn.add(row.league_member_id);
+              migrated++;
+            }
           }
         }
         log.push(`Migrated ${migrated} season members to correct season.`);
-      }
 
-      // 2. Delete picks on bad seasons' games.
-      if (badSeasonIds.length > 0) {
-        const delPicks = await db.execute(sql`
-          DELETE FROM picks WHERE game_id IN (
-            SELECT g.id FROM games g JOIN weeks w ON w.id = g.week_id
-            WHERE w.season_id = ANY(${badSeasonIds}::uuid[])
-          )
-        `);
-        log.push(`Deleted ${(delPicks as any).rowCount} picks on bad season games.`);
+        // 2. Delete picks and game_odds on bad seasons' games (per season).
+        let totalPicksDeleted = 0;
+        for (const badId of badSeasonIds) {
+          const del = await db.execute(sql`
+            DELETE FROM picks WHERE game_id IN (
+              SELECT g.id FROM games g
+              JOIN weeks w ON w.id = g.week_id
+              WHERE w.season_id = ${badId}
+            )
+          `);
+          totalPicksDeleted += (del as any).rowCount ?? 0;
 
-        // 3. Delete game_odds on bad seasons' games.
-        await db.execute(sql`
-          DELETE FROM game_odds WHERE game_id IN (
-            SELECT g.id FROM games g JOIN weeks w ON w.id = g.week_id
-            WHERE w.season_id = ANY(${badSeasonIds}::uuid[])
-          )
-        `);
+          await db.execute(sql`
+            DELETE FROM game_odds WHERE game_id IN (
+              SELECT g.id FROM games g
+              JOIN weeks w ON w.id = g.week_id
+              WHERE w.season_id = ${badId}
+            )
+          `);
 
-        // 4. Delete games for bad seasons.
-        const delGames = await db.execute(sql`
-          DELETE FROM games WHERE week_id IN (
-            SELECT id FROM weeks WHERE season_id = ANY(${badSeasonIds}::uuid[])
-          )
-        `);
-        log.push(`Deleted ${(delGames as any).rowCount} games from bad seasons.`);
+          // 3. Delete games.
+          await db.execute(sql`
+            DELETE FROM games WHERE week_id IN (
+              SELECT id FROM weeks WHERE season_id = ${badId}
+            )
+          `);
 
-        // 5. Delete weeks.
-        await db.execute(sql`DELETE FROM weeks WHERE season_id = ANY(${badSeasonIds}::uuid[])`);
+          // 4. Delete weeks.
+          await db.execute(sql`DELETE FROM weeks WHERE season_id = ${badId}`);
 
-        // 6. Delete schedule_imports.
-        await db.execute(sql`DELETE FROM schedule_imports WHERE season_id = ANY(${badSeasonIds}::uuid[])`);
+          // 5. Delete schedule_imports.
+          await db.execute(sql`DELETE FROM schedule_imports WHERE season_id = ${badId}`);
 
-        // 7. Delete season_members on bad seasons.
-        await db.execute(sql`DELETE FROM season_members WHERE season_id = ANY(${badSeasonIds}::uuid[])`);
+          // 6. Delete season_members on this bad season.
+          await db.execute(sql`DELETE FROM season_members WHERE season_id = ${badId}`);
 
-        // 8. Delete bad seasons.
-        await db.execute(sql`DELETE FROM seasons WHERE id = ANY(${badSeasonIds}::uuid[])`);
+          // 7. Delete the bad season itself.
+          await db.execute(sql`DELETE FROM seasons WHERE id = ${badId}`);
+        }
+        log.push(`Deleted ${totalPicksDeleted} picks from bad seasons.`);
         log.push(`Removed ${badSeasonIds.length} bad season(s).`);
       }
 
