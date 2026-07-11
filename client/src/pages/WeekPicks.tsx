@@ -461,7 +461,7 @@ function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isW
           : "border-slate-200 hover:border-slate-300 text-slate-700"
       }`}
     >
-      <span className={isWinner ? "font-black text-base" : "font-bold"}>{team?.abbreviation}</span>
+      <span className={isWinner ? "font-bold text-green-600" : "font-bold"}>{team?.abbreviation}</span>
       <span className="text-xs text-slate-500 hidden sm:block">{team?.city}</span>
       {spread !== null && (
         <div className="flex items-center gap-1 mt-1">
