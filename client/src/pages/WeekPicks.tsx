@@ -34,6 +34,8 @@ export default function WeekPicks() {
   const [savingGames, setSavingGames] = useState<Set<string>>(new Set());
   const [savedGames, setSavedGames] = useState<Set<string>>(new Set());
   const [errorGames, setErrorGames] = useState<Record<string, string>>({});
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const initialized = useRef(false);
 
   const { data, isLoading } = useQuery({
@@ -190,6 +192,40 @@ export default function WeekPicks() {
     toSave.forEach(({ gameId, teamId, confidence }) => triggerSave(gameId, teamId, confidence));
   };
 
+  const handleClearConfirmed = async () => {
+    setClearing(true);
+    setConfirmClear(false);
+    try {
+      const res = await fetch(`/api/weeks/${weekId}/picks`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to clear");
+
+      const gameList = data?.games || [];
+      const now = new Date();
+      const openGameIds = new Set(
+        gameList
+          .filter((g: any) => !["final", "in_progress"].includes(g.gameResult?.status ?? ""))
+          .filter((g: any) => !g.pickCutoffAtUtc || new Date(g.pickCutoffAtUtc) > now)
+          .map((g: any) => g.id)
+      );
+
+      setDraftPicks((prev) => {
+        const next = { ...prev };
+        for (const id of openGameIds) delete next[id];
+        return next;
+      });
+      setSavingGames(new Set());
+      setSavedGames(new Set());
+      setErrorGames({});
+      queryClient.invalidateQueries({ queryKey: ["/api/weeks", weekId, "games"] });
+    } catch {
+    } finally {
+      setClearing(false);
+    }
+  };
+
   if (isLoading) return <div className="text-center py-16 text-slate-400">Loading...</div>;
 
   const games = data?.games || [];
@@ -232,7 +268,7 @@ export default function WeekPicks() {
       </p>
 
       {pickableCount > 0 && (
-        <div className="flex gap-2 mb-5">
+        <div className="flex flex-wrap gap-2 mb-5 items-center">
           <button
             onClick={handleFavorites}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors"
@@ -247,6 +283,35 @@ export default function WeekPicks() {
           >
             🎲 Pick Random
           </button>
+
+          {pickedCount > 0 && !confirmClear && (
+            <button
+              onClick={() => setConfirmClear(true)}
+              disabled={clearing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 ml-auto"
+              title="Remove all open picks for this week"
+            >
+              {clearing ? "Clearing…" : "🗑️ Clear All"}
+            </button>
+          )}
+
+          {confirmClear && (
+            <div className="ml-auto flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+              <span className="text-sm text-red-700 font-medium">Clear all picks?</span>
+              <button
+                onClick={handleClearConfirmed}
+                className="px-2.5 py-1 rounded bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"
+              >
+                Yes, clear
+              </button>
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="px-2.5 py-1 rounded bg-white border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
 

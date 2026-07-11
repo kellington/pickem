@@ -277,6 +277,49 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.delete("/api/weeks/:weekId/picks", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const weekId = req.params.weekId;
+
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) return res.status(403).json({ message: "Not a league member" });
+
+      const [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      if (!member || member.status !== "active") return res.status(403).json({ message: "Not an active league member" });
+
+      const [week] = await db.select().from(weeks).where(eq(weeks.id, weekId));
+      if (!week) return res.status(404).json({ message: "Week not found" });
+
+      const [sm] = await db.select().from(seasonMembers)
+        .where(and(eq(seasonMembers.leagueMemberId, member.id), eq(seasonMembers.seasonId, week.seasonId)));
+      if (!sm) return res.json({ ok: true, deleted: 0 });
+
+      const gamesWithResults = await db.query.games.findMany({
+        where: eq(games.weekId, weekId),
+        with: { gameResult: true },
+      });
+
+      const openGameIds = gamesWithResults
+        .filter((g) => !["final", "in_progress"].includes(g.gameResult?.status ?? ""))
+        .map((g) => g.id);
+
+      if (openGameIds.length === 0) return res.json({ ok: true, deleted: 0 });
+
+      let deleted = 0;
+      for (const gameId of openGameIds) {
+        await db.delete(picks)
+          .where(and(eq(picks.seasonMemberId, sm.id), eq(picks.gameId, gameId)));
+        deleted++;
+      }
+
+      res.json({ ok: true, deleted });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   app.get("/api/weeks/:weekId/standings", isAuthenticated, async (req, res) => {
     try {
       const weekId = req.params.weekId;
