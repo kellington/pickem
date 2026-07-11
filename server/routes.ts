@@ -427,6 +427,10 @@ export function registerRoutes(app: Express) {
 
       const weekId = req.params.weekId;
       const result = await scoreBatchForWeek(weekId);
+
+      // Mark the week as scored
+      await db.update(weeks).set({ status: "scored" }).where(eq(weeks.id, weekId));
+
       res.json(result);
     } catch (err) {
       console.error(err);

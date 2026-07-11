@@ -20,6 +20,12 @@ async function fetchMe() {
   return res.json();
 }
 
+async function fetchStandings(seasonId: string) {
+  const res = await fetch(`/api/seasons/${seasonId}/standings`, { credentials: "include" });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export default function Home() {
   const [oddsResult, setOddsResult] = useState<{ matched: number; skipped: number; total: number; lastRefreshedAt: string } | null>(null);
   const [oddsError, setOddsError] = useState<string | null>(null);
@@ -46,6 +52,12 @@ export default function Home() {
   const { data: weeks = [], isLoading: weeksLoading } = useQuery({
     queryKey: ["/api/seasons", activeSeason?.id, "weeks"],
     queryFn: () => fetchWeeks(activeSeason.id),
+    enabled: !!activeSeason,
+  });
+
+  const { data: standingsData, refetch: refetchStandings } = useQuery({
+    queryKey: ["/api/seasons", activeSeason?.id, "standings"],
+    queryFn: () => fetchStandings(activeSeason!.id),
     enabled: !!activeSeason,
   });
 
@@ -126,6 +138,20 @@ export default function Home() {
       setConfirmClearResults(false);
       setResultsMsg({ text: e.message, ok: false });
     },
+  });
+
+  const scoreWeek = useMutation({
+    mutationFn: async (weekId: string) => {
+      const res = await fetch(`/api/admin/score-week/${weekId}`, { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed");
+      return data;
+    },
+    onSuccess: (data) => {
+      setResultsMsg({ text: `✓ Week scored — ${data.picksScored} picks processed`, ok: true });
+      refetchStandings();
+    },
+    onError: (e: any) => setResultsMsg({ text: e.message, ok: false }),
   });
 
   if (seasonsLoading) {
@@ -239,7 +265,44 @@ export default function Home() {
               Full standings →
             </Link>
           </div>
-          <p className="text-slate-400 text-sm">View the full standings page for rankings and dropped week details.</p>
+          {!standingsData || standingsData.standings?.length === 0 ? (
+            <p className="text-slate-400 text-sm">No standings yet — check back once weeks are scored.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left py-2 text-slate-400 font-medium w-8">#</th>
+                    <th className="text-left py-2 text-slate-400 font-medium">Team</th>
+                    <th className="text-right py-2 text-slate-400 font-medium">Wks</th>
+                    <th className="text-right py-2 text-slate-400 font-medium">✓</th>
+                    <th className="text-right py-2 font-semibold text-slate-600">Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standingsData.standings.map((s: any) => (
+                    <tr key={s.seasonMemberId} className="border-b border-slate-50 last:border-0">
+                      <td className="py-2 text-slate-400 font-bold text-xs">{s.rank}</td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#013369] text-white text-[10px] font-bold shrink-0">
+                            {s.initials}
+                          </span>
+                          <span className="font-medium text-slate-800 truncate">{s.displayName}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 text-right text-slate-500 text-xs">{s.weeksScored}</td>
+                      <td className="py-2 text-right text-slate-500 text-xs">{s.correctPickTotal}</td>
+                      <td className="py-2 text-right font-bold text-slate-800">{s.adjustedTotalPoints}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {standingsData.season?.droppedWeekCount > 0 && standingsData.standings[0]?.droppedPoints > 0 && (
+                <p className="text-xs text-slate-400 mt-2">Pts = adjusted (bottom {standingsData.season.droppedWeekCount} weeks dropped)</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -382,11 +445,23 @@ export default function Home() {
                 )}
               </div>
 
+              <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => { setResultsMsg(null); scoreWeek.mutate(resultsWeekId); }}
+                  disabled={!resultsWeekId || scoreWeek.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-40 transition-colors"
+                  title="Score all picks for this week against results, then mark the week as Scored"
+                >
+                  {scoreWeek.isPending ? <><span className="animate-spin">⟳</span> Scoring…</> : <>✅ Score Week</>}
+                </button>
+                <span className="text-xs text-slate-400">Scores picks against results and marks week as Scored. Run after all game results are in.</span>
+              </div>
+
               {resultsMsg && (
-                <p className={`text-sm mt-1 ${resultsMsg.ok ? "text-green-600" : "text-red-500"}`}>{resultsMsg.text}</p>
+                <p className={`text-sm mt-2 ${resultsMsg.ok ? "text-green-600" : "text-red-500"}`}>{resultsMsg.text}</p>
               )}
               <p className="text-xs text-slate-400 mt-1">
-                <strong>Generate Fake Results</strong> — random scores for testing. <strong>Refresh from ESPN</strong> — live scores during the real season. <strong>Clear Results</strong> — wipe test data before season starts.
+                <strong>Generate Fake Results</strong> — random scores for testing. <strong>Refresh from ESPN</strong> — live scores during the real season. <strong>Score Week</strong> — calculate points and lock the week. <strong>Clear Results</strong> — wipe test data before season starts.
               </p>
             </div>
           </div>
