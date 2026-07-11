@@ -560,6 +560,169 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Generate random fake game results for a week (testing only)
+  app.post("/api/admin/results/generate/:weekId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const weekId = req.params.weekId;
+      const weekGames = await db.query.games.findMany({
+        where: eq(games.weekId, weekId),
+        with: { awayTeam: true, homeTeam: true },
+      });
+      if (weekGames.length === 0) return res.status(404).json({ message: "No games found for this week" });
+
+      const commonScores = [7, 10, 13, 14, 17, 20, 21, 23, 24, 27, 28, 30, 31, 34, 35, 38, 41, 42];
+      const now = new Date();
+      let upserted = 0;
+
+      for (const game of weekGames) {
+        let awayScore = commonScores[Math.floor(Math.random() * commonScores.length)];
+        let homeScore = commonScores[Math.floor(Math.random() * commonScores.length)];
+        while (homeScore === awayScore) homeScore = commonScores[Math.floor(Math.random() * commonScores.length)];
+        const winningTeamId = homeScore > awayScore ? game.homeTeamId : game.awayTeamId;
+
+        await db.insert(gameResults).values({
+          gameId: game.id,
+          status: "final",
+          awayScore,
+          homeScore,
+          winningTeamId,
+          isTie: false,
+          finalizedAt: now,
+          enteredByMemberId: member.id,
+        }).onConflictDoUpdate({
+          target: gameResults.gameId,
+          set: { status: "final", awayScore, homeScore, winningTeamId, isTie: false, finalizedAt: now, updatedAt: now },
+        });
+        upserted++;
+      }
+
+      res.json({ ok: true, upserted, total: weekGames.length });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Fetch real game results from ESPN scoreboard API
+  app.post("/api/admin/results/refresh/:weekId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const weekId = req.params.weekId;
+      const [week] = await db.select().from(weeks).where(eq(weeks.id, weekId));
+      if (!week) return res.status(404).json({ message: "Week not found" });
+
+      const [season] = await db.select().from(seasons).where(eq(seasons.id, week.seasonId));
+      if (!season) return res.status(404).json({ message: "Season not found" });
+
+      const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week.weekNumber}&year=${season.year}`;
+      const espnRes = await fetch(espnUrl);
+      if (!espnRes.ok) return res.status(502).json({ message: `ESPN API returned ${espnRes.status}` });
+
+      const espnData: any = await espnRes.json();
+      const events: any[] = espnData.events || [];
+
+      const weekGames = await db.query.games.findMany({
+        where: eq(games.weekId, weekId),
+        with: { awayTeam: true, homeTeam: true },
+      });
+
+      // Some ESPN abbreviations differ from our DB — map ESPN → DB
+      const aliasMap: Record<string, string> = { WSH: "WAS", JAX: "JAC" };
+      const norm = (abbr: string) => (aliasMap[abbr.toUpperCase()] ?? abbr.toUpperCase());
+
+      let matched = 0;
+      let skipped = 0;
+      const now = new Date();
+
+      for (const event of events) {
+        const comp = event.competitions?.[0];
+        if (!comp) continue;
+
+        const statusName: string = comp.status?.type?.name ?? "";
+        const completed: boolean = comp.status?.type?.completed ?? false;
+        let status: "scheduled" | "in_progress" | "final" | "postponed" | "cancelled" = "scheduled";
+        if (statusName === "STATUS_FINAL" || completed) status = "final";
+        else if (statusName === "STATUS_IN_PROGRESS") status = "in_progress";
+        else if (statusName.includes("POSTPONED")) status = "postponed";
+        else if (statusName.includes("CANCEL")) status = "cancelled";
+
+        const homeComp = comp.competitors?.find((c: any) => c.homeAway === "home");
+        const awayComp = comp.competitors?.find((c: any) => c.homeAway === "away");
+        if (!homeComp || !awayComp) continue;
+
+        const espnHome = norm(homeComp.team?.abbreviation ?? "");
+        const espnAway = norm(awayComp.team?.abbreviation ?? "");
+
+        const dbGame = weekGames.find((g) =>
+          norm(g.homeTeam?.abbreviation ?? "") === espnHome &&
+          norm(g.awayTeam?.abbreviation ?? "") === espnAway
+        );
+        if (!dbGame) { skipped++; continue; }
+
+        const homeScore = homeComp.score != null ? parseInt(homeComp.score) : null;
+        const awayScore = awayComp.score != null ? parseInt(awayComp.score) : null;
+        let winningTeamId: string | null = null;
+        let isTie = false;
+        if (status === "final" && homeScore !== null && awayScore !== null) {
+          if (homeScore > awayScore) winningTeamId = dbGame.homeTeamId;
+          else if (awayScore > homeScore) winningTeamId = dbGame.awayTeamId;
+          else isTie = true;
+        }
+
+        await db.insert(gameResults).values({
+          gameId: dbGame.id,
+          status,
+          awayScore,
+          homeScore,
+          winningTeamId,
+          isTie,
+          finalizedAt: status === "final" ? now : null,
+          enteredByMemberId: member.id,
+        }).onConflictDoUpdate({
+          target: gameResults.gameId,
+          set: { status, awayScore, homeScore, winningTeamId, isTie, finalizedAt: status === "final" ? now : null, updatedAt: now },
+        });
+        matched++;
+      }
+
+      res.json({ ok: true, matched, skipped, total: events.length });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Clear all game results for a week (pre-season cleanup)
+  app.delete("/api/admin/results/:weekId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const weekId = req.params.weekId;
+      const weekGames = await db.select().from(games).where(eq(games.weekId, weekId));
+      let deleted = 0;
+      for (const game of weekGames) {
+        await db.delete(gameResults).where(eq(gameResults.gameId, game.id));
+        deleted++;
+      }
+      res.json({ ok: true, deleted });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   app.get("/api/feature-ideas", isAuthenticated, async (_req, res) => {
     try {
       const rows = await db

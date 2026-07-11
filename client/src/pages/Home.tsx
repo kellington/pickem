@@ -26,6 +26,10 @@ export default function Home() {
   const [fixResult, setFixResult] = useState<{ log?: string[]; message?: string; alreadyDone?: boolean } | null>(null);
   const [fixError, setFixError] = useState<string | null>(null);
 
+  const [resultsWeekId, setResultsWeekId] = useState<string>("");
+  const [resultsMsg, setResultsMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [confirmClearResults, setConfirmClearResults] = useState(false);
+
   const { data: me } = useQuery({
     queryKey: ["/api/me"],
     queryFn: fetchMe,
@@ -82,6 +86,45 @@ export default function Home() {
     onError: (e: any) => {
       setOddsError(e.message);
       setOddsResult(null);
+    },
+  });
+
+  const generateResults = useMutation({
+    mutationFn: async (weekId: string) => {
+      const res = await fetch(`/api/admin/results/generate/${weekId}`, { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed");
+      return data;
+    },
+    onSuccess: (data) => setResultsMsg({ text: `✓ Generated fake results for ${data.upserted} games`, ok: true }),
+    onError: (e: any) => setResultsMsg({ text: e.message, ok: false }),
+  });
+
+  const refreshResults = useMutation({
+    mutationFn: async (weekId: string) => {
+      const res = await fetch(`/api/admin/results/refresh/${weekId}`, { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed");
+      return data;
+    },
+    onSuccess: (data) => setResultsMsg({ text: `✓ ESPN: ${data.matched} matched, ${data.skipped} skipped (${data.total} from API)`, ok: true }),
+    onError: (e: any) => setResultsMsg({ text: e.message, ok: false }),
+  });
+
+  const clearResults = useMutation({
+    mutationFn: async (weekId: string) => {
+      const res = await fetch(`/api/admin/results/${weekId}`, { method: "DELETE", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed");
+      return data;
+    },
+    onSuccess: (data) => {
+      setConfirmClearResults(false);
+      setResultsMsg({ text: `✓ Cleared results for ${data.deleted} games`, ok: true });
+    },
+    onError: (e: any) => {
+      setConfirmClearResults(false);
+      setResultsMsg({ text: e.message, ok: false });
     },
   });
 
@@ -278,6 +321,72 @@ export default function Home() {
               )}
               <p className="text-xs text-slate-400 mt-1">
                 Fixes duplicate season data in production — migrates members, removes wrong season, activates the correct 272-game schedule. Safe to run multiple times.
+              </p>
+            </div>
+
+            {/* Game Results section */}
+            <div className="border-t border-slate-100 pt-3 mt-1">
+              <p className="text-sm font-medium text-slate-600 mb-2">🏈 Game Results</p>
+
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <select
+                  value={resultsWeekId}
+                  onChange={(e) => { setResultsWeekId(e.target.value); setResultsMsg(null); setConfirmClearResults(false); }}
+                  className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">Select a week…</option>
+                  {(weeks as any[]).map((w: any) => (
+                    <option key={w.id} value={w.id}>{w.label}</option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => { setResultsMsg(null); generateResults.mutate(resultsWeekId); }}
+                  disabled={!resultsWeekId || generateResults.isPending || refreshResults.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-40 transition-colors"
+                  title="Randomly generate fake final scores for all games this week (testing only)"
+                >
+                  {generateResults.isPending ? <><span className="animate-spin">⟳</span> Generating…</> : <>🎲 Generate Fake Results</>}
+                </button>
+
+                <button
+                  onClick={() => { setResultsMsg(null); refreshResults.mutate(resultsWeekId); }}
+                  disabled={!resultsWeekId || refreshResults.isPending || generateResults.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                  title="Pull live scores from ESPN — use this once the real season starts"
+                >
+                  {refreshResults.isPending ? <><span className="animate-spin">⟳</span> Fetching…</> : <>📡 Refresh from ESPN</>}
+                </button>
+
+                {!confirmClearResults ? (
+                  <button
+                    onClick={() => setConfirmClearResults(true)}
+                    disabled={!resultsWeekId || clearResults.isPending}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100 disabled:opacity-40 transition-colors"
+                    title="Delete all results for this week"
+                  >
+                    🗑️ Clear Results
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+                    <span className="text-sm text-red-700 font-medium">Clear all results?</span>
+                    <button
+                      onClick={() => { setResultsMsg(null); clearResults.mutate(resultsWeekId); }}
+                      className="px-2.5 py-1 rounded bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"
+                    >Yes, clear</button>
+                    <button
+                      onClick={() => setConfirmClearResults(false)}
+                      className="px-2.5 py-1 rounded bg-white border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                    >Cancel</button>
+                  </div>
+                )}
+              </div>
+
+              {resultsMsg && (
+                <p className={`text-sm mt-1 ${resultsMsg.ok ? "text-green-600" : "text-red-500"}`}>{resultsMsg.text}</p>
+              )}
+              <p className="text-xs text-slate-400 mt-1">
+                <strong>Generate Fake Results</strong> — random scores for testing. <strong>Refresh from ESPN</strong> — live scores during the real season. <strong>Clear Results</strong> — wipe test data before season starts.
               </p>
             </div>
           </div>
