@@ -23,6 +23,8 @@ async function fetchMe() {
 export default function Home() {
   const [oddsResult, setOddsResult] = useState<{ matched: number; skipped: number; total: number; lastRefreshedAt: string } | null>(null);
   const [oddsError, setOddsError] = useState<string | null>(null);
+  const [fixResult, setFixResult] = useState<{ log?: string[]; message?: string; alreadyDone?: boolean } | null>(null);
+  const [fixError, setFixError] = useState<string | null>(null);
 
   const { data: me } = useQuery({
     queryKey: ["/api/me"],
@@ -41,6 +43,26 @@ export default function Home() {
     queryKey: ["/api/seasons", activeSeason?.id, "weeks"],
     queryFn: () => fetchWeeks(activeSeason.id),
     enabled: !!activeSeason,
+  });
+
+  const fixSeasonData = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/fix-season-data", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed");
+      return data;
+    },
+    onSuccess: (data) => {
+      setFixResult(data);
+      setFixError(null);
+    },
+    onError: (e: any) => {
+      setFixError(e.message);
+      setFixResult(null);
+    },
   });
 
   const refreshOdds = useMutation({
@@ -197,6 +219,43 @@ export default function Home() {
               Fetches current NFL odds from The Odds API and stores them. Run this daily during the week for fresh lines.
               Requires the <code className="bg-slate-100 px-1 rounded">ODDS_API_KEY</code> secret.
             </p>
+
+            <div className="border-t border-slate-100 pt-3 mt-1">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => fixSeasonData.mutate()}
+                  disabled={fixSeasonData.isPending || fixResult?.alreadyDone}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                >
+                  {fixSeasonData.isPending ? (
+                    <><span className="animate-spin">⟳</span> Running…</>
+                  ) : fixResult?.alreadyDone ? (
+                    <>✓ Season data already correct</>
+                  ) : (
+                    <>🔧 Fix Season Data (one-time)</>
+                  )}
+                </button>
+                {fixResult && !fixResult.alreadyDone && fixResult.log && (
+                  <div className="text-sm text-green-600 font-medium">✓ Done</div>
+                )}
+                {fixError && (
+                  <span className="text-sm text-red-500">{fixError}</span>
+                )}
+              </div>
+              {fixResult?.log && fixResult.log.length > 0 && (
+                <ul className="mt-2 space-y-0.5">
+                  {fixResult.log.map((line, i) => (
+                    <li key={i} className="text-xs text-slate-500">• {line}</li>
+                  ))}
+                </ul>
+              )}
+              {fixResult?.message && (
+                <p className="text-xs text-slate-500 mt-1">{fixResult.message}</p>
+              )}
+              <p className="text-xs text-slate-400 mt-1">
+                Fixes duplicate season data in production — migrates members, removes wrong season, activates the correct 272-game schedule. Safe to run multiple times.
+              </p>
+            </div>
           </div>
         </div>
       )}

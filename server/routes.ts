@@ -539,6 +539,125 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // One-time data migration: fix duplicate seasons, activate correct 2026 season.
+  // Safe to run multiple times (idempotent). Admin-only.
+  app.post("/api/admin/fix-season-data", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) return res.status(403).json({ message: "User not found" });
+      const [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admins only" });
+
+      // Identify the correct season: the one with 272 games (ESPN-sourced).
+      const seasonGameCounts = await db.execute(sql`
+        SELECT s.id, s.status, COUNT(g.id) as game_count
+        FROM seasons s
+        JOIN weeks w ON w.season_id = s.id
+        LEFT JOIN games g ON g.week_id = w.id
+        WHERE s.year = 2026
+        GROUP BY s.id, s.status
+      `);
+      const rows = seasonGameCounts.rows as { id: string; status: string; game_count: string }[];
+
+      const correctSeason = rows.find((r) => Number(r.game_count) === 272);
+      const badSeasons = rows.filter((r) => r.id !== correctSeason?.id);
+
+      if (!correctSeason) {
+        return res.status(400).json({ message: "Could not identify the correct season (need exactly one with 272 games)." });
+      }
+
+      if (badSeasons.length === 0 && correctSeason.status === "active") {
+        return res.json({ ok: true, message: "Already fixed — correct season is active with 272 games.", alreadyDone: true });
+      }
+
+      const badSeasonIds = badSeasons.map((r) => r.id);
+      const log: string[] = [];
+
+      // 1. Migrate season_members from bad seasons to correct season (skip duplicates).
+      if (badSeasonIds.length > 0) {
+        const existing = await db.execute(sql`
+          SELECT league_member_id FROM season_members WHERE season_id = ${correctSeason.id}
+        `);
+        const alreadyIn = new Set((existing.rows as any[]).map((r) => r.league_member_id));
+
+        const toMigrate = await db.execute(sql`
+          SELECT id, league_member_id FROM season_members
+          WHERE season_id = ANY(${badSeasonIds}::uuid[])
+        `);
+        let migrated = 0;
+        for (const row of toMigrate.rows as any[]) {
+          if (!alreadyIn.has(row.league_member_id)) {
+            await db.execute(sql`
+              INSERT INTO season_members (league_member_id, season_id)
+              VALUES (${row.league_member_id}, ${correctSeason.id})
+              ON CONFLICT DO NOTHING
+            `);
+            migrated++;
+          }
+        }
+        log.push(`Migrated ${migrated} season members to correct season.`);
+      }
+
+      // 2. Delete picks on bad seasons' games.
+      if (badSeasonIds.length > 0) {
+        const delPicks = await db.execute(sql`
+          DELETE FROM picks WHERE game_id IN (
+            SELECT g.id FROM games g JOIN weeks w ON w.id = g.week_id
+            WHERE w.season_id = ANY(${badSeasonIds}::uuid[])
+          )
+        `);
+        log.push(`Deleted ${(delPicks as any).rowCount} picks on bad season games.`);
+
+        // 3. Delete game_odds on bad seasons' games.
+        await db.execute(sql`
+          DELETE FROM game_odds WHERE game_id IN (
+            SELECT g.id FROM games g JOIN weeks w ON w.id = g.week_id
+            WHERE w.season_id = ANY(${badSeasonIds}::uuid[])
+          )
+        `);
+
+        // 4. Delete games for bad seasons.
+        const delGames = await db.execute(sql`
+          DELETE FROM games WHERE week_id IN (
+            SELECT id FROM weeks WHERE season_id = ANY(${badSeasonIds}::uuid[])
+          )
+        `);
+        log.push(`Deleted ${(delGames as any).rowCount} games from bad seasons.`);
+
+        // 5. Delete weeks.
+        await db.execute(sql`DELETE FROM weeks WHERE season_id = ANY(${badSeasonIds}::uuid[])`);
+
+        // 6. Delete schedule_imports.
+        await db.execute(sql`DELETE FROM schedule_imports WHERE season_id = ANY(${badSeasonIds}::uuid[])`);
+
+        // 7. Delete season_members on bad seasons.
+        await db.execute(sql`DELETE FROM season_members WHERE season_id = ANY(${badSeasonIds}::uuid[])`);
+
+        // 8. Delete bad seasons.
+        await db.execute(sql`DELETE FROM seasons WHERE id = ANY(${badSeasonIds}::uuid[])`);
+        log.push(`Removed ${badSeasonIds.length} bad season(s).`);
+      }
+
+      // 9. Activate correct season.
+      await db.update(seasons).set({ status: "active" }).where(eq(seasons.id, correctSeason.id));
+      log.push(`Season ${correctSeason.id} set to active.`);
+
+      // 10. Open Week 1 of correct season (find it by week_number=1).
+      const [week1] = await db.select({ id: weeks.id }).from(weeks)
+        .where(and(eq(weeks.seasonId, correctSeason.id), eq(weeks.weekNumber, 1)));
+      if (week1) {
+        await db.update(weeks).set({ status: "open" }).where(eq(weeks.id, week1.id));
+        log.push(`Week 1 (${week1.id}) set to open.`);
+      }
+
+      res.json({ ok: true, log });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error", detail: String(err) });
+    }
+  });
+
   app.patch("/api/feature-ideas/:id/complete", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
