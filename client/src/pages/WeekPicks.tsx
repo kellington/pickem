@@ -113,6 +113,83 @@ export default function WeekPicks() {
     savePick.mutate({ gameId, selectedTeamId, confidenceValue });
   };
 
+  const getUnpickedOpenGames = (currentDraft: Record<string, DraftPick>, gameList: any[]) => {
+    const now = new Date();
+    return gameList.filter((g: any) => {
+      const completed = ["final", "in_progress"].includes(g.gameResult?.status);
+      const cutoffPassed = g.pickCutoffAtUtc && new Date(g.pickCutoffAtUtc) <= now;
+      const locked = completed || !!cutoffPassed;
+      const alreadyPicked = currentDraft[g.id]?.teamId && currentDraft[g.id]?.confidence > 0;
+      return !locked && !alreadyPicked;
+    });
+  };
+
+  const getAvailableConfidence = (currentDraft: Record<string, DraftPick>, total: number) => {
+    const used = new Set(Object.values(currentDraft).filter((p) => p.confidence > 0).map((p) => p.confidence));
+    return Array.from({ length: total }, (_, i) => i + 1).filter((n) => !used.has(n));
+  };
+
+  const handleFavorites = () => {
+    const gameList = data?.games || [];
+    const total = gameList.length;
+    const unpicked = getUnpickedOpenGames(draftPicks, gameList);
+    const available = getAvailableConfidence(draftPicks, total);
+
+    const gamesWithFav = unpicked.map((g: any) => {
+      const spread = g.gameOdds?.spread ?? null;
+      let favoredTeamId: string;
+      let absSpread: number;
+      if (spread === null) {
+        favoredTeamId = Math.random() < 0.5 ? g.homeTeamId : g.awayTeamId;
+        absSpread = 0;
+      } else if (spread <= 0) {
+        favoredTeamId = g.homeTeamId;
+        absSpread = Math.abs(spread);
+      } else {
+        favoredTeamId = g.awayTeamId;
+        absSpread = spread;
+      }
+      return { game: g, favoredTeamId, absSpread };
+    });
+
+    gamesWithFav.sort((a, b) => b.absSpread - a.absSpread);
+    const sortedConf = [...available].sort((a, b) => b - a);
+
+    const newPicks = { ...draftPicks };
+    const toSave: Array<{ gameId: string; teamId: string; confidence: number }> = [];
+    gamesWithFav.forEach((item, i) => {
+      const confidence = sortedConf[i];
+      if (confidence) {
+        newPicks[item.game.id] = { teamId: item.favoredTeamId, confidence };
+        toSave.push({ gameId: item.game.id, teamId: item.favoredTeamId, confidence });
+      }
+    });
+    setDraftPicks(newPicks);
+    toSave.forEach(({ gameId, teamId, confidence }) => triggerSave(gameId, teamId, confidence));
+  };
+
+  const handleRandom = () => {
+    const gameList = data?.games || [];
+    const total = gameList.length;
+    const unpicked = getUnpickedOpenGames(draftPicks, gameList);
+    const available = getAvailableConfidence(draftPicks, total);
+
+    const shuffledConf = [...available].sort(() => Math.random() - 0.5);
+
+    const newPicks = { ...draftPicks };
+    const toSave: Array<{ gameId: string; teamId: string; confidence: number }> = [];
+    unpicked.forEach((g: any, i) => {
+      const teamId = Math.random() < 0.5 ? g.homeTeamId : g.awayTeamId;
+      const confidence = shuffledConf[i];
+      if (confidence) {
+        newPicks[g.id] = { teamId, confidence };
+        toSave.push({ gameId: g.id, teamId, confidence });
+      }
+    });
+    setDraftPicks(newPicks);
+    toSave.forEach(({ gameId, teamId, confidence }) => triggerSave(gameId, teamId, confidence));
+  };
+
   if (isLoading) return <div className="text-center py-16 text-slate-400">Loading...</div>;
 
   const games = data?.games || [];
@@ -150,9 +227,28 @@ export default function WeekPicks() {
         <h1 className="text-2xl font-bold text-slate-800">My Picks</h1>
         <span className="text-sm text-slate-500">{pickedCount} / {totalGames} picked</span>
       </div>
-      <p className="text-slate-500 text-sm mb-5">
+      <p className="text-slate-500 text-sm mb-4">
         Assign each confidence value (1–{totalGames}) once. Higher = more confident. Picks save automatically.
       </p>
+
+      {pickableCount > 0 && (
+        <div className="flex gap-2 mb-5">
+          <button
+            onClick={handleFavorites}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors"
+            title="Auto-pick the spread favorite in each game, highest confidence to biggest favorite"
+          >
+            ⭐ Pick Favorites
+          </button>
+          <button
+            onClick={handleRandom}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-800 text-sm font-medium hover:bg-purple-100 transition-colors"
+            title="Randomly pick a winner and assign remaining confidence values"
+          >
+            🎲 Pick Random
+          </button>
+        </div>
+      )}
 
       <div className="space-y-3">
         {games.map((game: any) => {
