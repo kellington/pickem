@@ -7,6 +7,7 @@ import {
   timestamp,
   unique,
   pgEnum,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -205,6 +206,19 @@ export const featureIdeas = pgTable("feature_ideas", {
   submittedAt: timestamp("submitted_at").defaultNow(),
 });
 
+export const gameOdds = pgTable("game_odds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gameId: varchar("game_id").notNull().references(() => games.id),
+  spread: doublePrecision("spread"),
+  previousSpread: doublePrecision("previous_spread"),
+  homeMoneyline: integer("home_moneyline"),
+  awayMoneyline: integer("away_moneyline"),
+  overUnder: doublePrecision("over_under"),
+  refreshedAt: timestamp("refreshed_at").defaultNow(),
+}, (t) => [
+  unique().on(t.gameId),
+]);
+
 export const scheduleImportRows = pgTable("schedule_import_rows", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   scheduleImportId: varchar("schedule_import_id").notNull().references(() => scheduleImports.id),
@@ -279,6 +293,11 @@ export const gamesRelations = relations(games, ({ one, many }) => ({
   homeTeam: one(nflTeams, { fields: [games.homeTeamId], references: [nflTeams.id], relationName: "homeTeam" }),
   gameResult: one(gameResults, { fields: [games.id], references: [gameResults.gameId] }),
   picks: many(picks),
+  gameOdds: one(gameOdds, { fields: [games.id], references: [gameOdds.gameId] }),
+}));
+
+export const gameOddsRelations = relations(gameOdds, ({ one }) => ({
+  game: one(games, { fields: [gameOdds.gameId], references: [games.id] }),
 }));
 
 export const picksRelations = relations(picks, ({ one }) => ({
@@ -302,3 +321,5 @@ export type SeasonMember = typeof seasonMembers.$inferSelect;
 export type WeeklyScore = typeof weeklyScores.$inferSelect;
 export type GameResult = typeof gameResults.$inferSelect;
 export type PickScore = typeof pickScores.$inferSelect;
+export type GameOdds = typeof gameOdds.$inferSelect;
+export type InsertGameOdds = typeof gameOdds.$inferInsert;

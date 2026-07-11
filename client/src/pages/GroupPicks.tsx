@@ -7,6 +7,22 @@ async function fetchGroupData(weekId: string) {
   return res.json();
 }
 
+function formatMl(ml: number | null | undefined): string {
+  if (ml == null) return "";
+  return ml > 0 ? `+${ml}` : `${ml}`;
+}
+
+function SpreadMovement({ prev, curr }: { prev: number | null; curr: number | null }) {
+  if (prev == null || curr == null || prev === curr) return null;
+  const delta = Math.abs(curr - prev).toFixed(1);
+  const moved = curr < prev;
+  return (
+    <span className={`text-[9px] font-semibold ${moved ? "text-green-600" : "text-orange-500"}`}>
+      {moved ? "▼" : "▲"}{delta}
+    </span>
+  );
+}
+
 export default function GroupPicks() {
   const { weekId } = useParams<{ weekId: string }>();
 
@@ -62,47 +78,65 @@ export default function GroupPicks() {
               </tr>
             </thead>
             <tbody>
-              {revealedGames.map((game: any) => (
-                <tr key={game.id} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-800">
-                      {game.awayTeam?.abbreviation} @ {game.homeTeam?.abbreviation}
-                    </div>
-                    <div className="text-xs text-slate-400">{formatTime(game.kickoffAtUtc)}</div>
-                    {game.gameResult?.status === "final" && (
-                      <div className="text-xs text-green-600 font-medium mt-0.5">
-                        Final: {game.gameResult.awayScore}–{game.gameResult.homeScore}
+              {revealedGames.map((game: any) => {
+                const odds = game.gameOdds;
+                const homeSpread = odds?.spread ?? null;
+                const prevSpread = odds?.previousSpread ?? null;
+                return (
+                  <tr key={game.id} className="border-b border-slate-50 hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-800">
+                        {game.awayTeam?.abbreviation} @ {game.homeTeam?.abbreviation}
                       </div>
-                    )}
-                  </td>
-                  {members.map((m: any) => {
-                    const pick = m.picks?.find((p: any) => p.gameId === game.id);
-                    if (!pick) {
-                      return (
-                        <td key={m.seasonMemberId} className="px-3 py-3 text-center text-slate-300">—</td>
-                      );
-                    }
-                    const team = pick.selectedTeamId === game.awayTeamId ? game.awayTeam : game.homeTeam;
-                    const correct = pick.score?.isCorrect;
-                    return (
-                      <td key={m.seasonMemberId} className="px-3 py-3 text-center">
-                        <div
-                          className={`text-xs font-bold ${
-                            pick.score
-                              ? correct
-                                ? "text-green-600"
-                                : "text-red-500"
-                              : "text-slate-600"
-                          }`}
-                        >
-                          {team?.abbreviation}
+                      <div className="text-xs text-slate-400">{formatTime(game.kickoffAtUtc)}</div>
+                      {homeSpread !== null && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-xs text-slate-500">
+                            {game.homeTeam?.abbreviation} {homeSpread > 0 ? `+${homeSpread}` : homeSpread}
+                          </span>
+                          <SpreadMovement prev={prevSpread} curr={homeSpread} />
+                          {odds?.homeMoneyline != null && (
+                            <span className="text-[10px] text-slate-400 ml-1">
+                              ML {formatMl(odds.homeMoneyline)}/{formatMl(odds.awayMoneyline)}
+                            </span>
+                          )}
                         </div>
-                        <div className="text-xs text-slate-400">({pick.confidenceValue})</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                      )}
+                      {game.gameResult?.status === "final" && (
+                        <div className="text-xs text-green-600 font-medium mt-0.5">
+                          Final: {game.gameResult.awayScore}–{game.gameResult.homeScore}
+                        </div>
+                      )}
+                    </td>
+                    {members.map((m: any) => {
+                      const pick = m.picks?.find((p: any) => p.gameId === game.id);
+                      if (!pick) {
+                        return (
+                          <td key={m.seasonMemberId} className="px-3 py-3 text-center text-slate-300">—</td>
+                        );
+                      }
+                      const team = pick.selectedTeamId === game.awayTeamId ? game.awayTeam : game.homeTeam;
+                      const correct = pick.score?.isCorrect;
+                      return (
+                        <td key={m.seasonMemberId} className="px-3 py-3 text-center">
+                          <div
+                            className={`text-xs font-bold ${
+                              pick.score
+                                ? correct
+                                  ? "text-green-600"
+                                  : "text-red-500"
+                                : "text-slate-600"
+                            }`}
+                          >
+                            {team?.abbreviation}
+                          </div>
+                          <div className="text-xs text-slate-400">({pick.confidenceValue})</div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50">

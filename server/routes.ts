@@ -21,6 +21,7 @@ import {
   pickScores,
   weeklyScores,
   featureIdeas,
+  gameOdds,
 } from "../shared/schema.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { validatePick, scoreBatchForWeek } from "./domain.js";
@@ -189,6 +190,7 @@ export function registerRoutes(app: Express) {
           awayTeam: true,
           homeTeam: true,
           gameResult: true,
+          gameOdds: true,
         },
         orderBy: asc(games.displayOrder),
       });
@@ -285,7 +287,7 @@ export function registerRoutes(app: Express) {
 
       const weekGamesList = await db.query.games.findMany({
         where: eq(games.weekId, weekId),
-        with: { awayTeam: true, homeTeam: true, gameResult: true },
+        with: { awayTeam: true, homeTeam: true, gameResult: true, gameOdds: true },
         orderBy: asc(games.displayOrder),
       });
 
@@ -383,6 +385,111 @@ export function registerRoutes(app: Express) {
       const weekId = req.params.weekId;
       const result = await scoreBatchForWeek(weekId);
       res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/odds/refresh", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const apiKey = process.env.ODDS_API_KEY;
+      if (!apiKey) return res.status(500).json({ message: "ODDS_API_KEY secret not configured. Add it in the Secrets tab." });
+
+      const oddsUrl = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${apiKey}&regions=us&markets=spreads,h2h&oddsFormat=american`;
+      const oddsResponse = await fetch(oddsUrl);
+      if (!oddsResponse.ok) {
+        const txt = await oddsResponse.text();
+        return res.status(502).json({ message: `Odds API returned ${oddsResponse.status}`, detail: txt.slice(0, 300) });
+      }
+      const oddsData: any[] = await oddsResponse.json();
+
+      const dbGames = await db.query.games.findMany({
+        with: { awayTeam: true, homeTeam: true, gameOdds: true },
+      });
+
+      function fuzzyMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+        if (!a || !b) return false;
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, " ").trim();
+        const na = norm(a);
+        const nb = norm(b);
+        if (na === nb) return true;
+        const lastA = na.split(" ").filter(Boolean).pop() || "";
+        const lastB = nb.split(" ").filter(Boolean).pop() || "";
+        return lastA.length > 3 && lastA === lastB;
+      }
+
+      let matched = 0;
+      let skipped = 0;
+
+      for (const oddsGame of oddsData) {
+        const commenceTime = new Date(oddsGame.commence_time);
+
+        const dbGame = dbGames.find((g) => {
+          if (!g.kickoffAtUtc) return false;
+          const diff = Math.abs(new Date(g.kickoffAtUtc).getTime() - commenceTime.getTime());
+          return diff <= 2 * 60 * 60 * 1000
+            && fuzzyMatch(g.homeTeam?.fullName, oddsGame.home_team)
+            && fuzzyMatch(g.awayTeam?.fullName, oddsGame.away_team);
+        });
+
+        if (!dbGame) { skipped++; continue; }
+
+        const preferred = ["draftkings", "fanduel", "betmgm"];
+        const bookmaker = oddsGame.bookmakers?.find((b: any) => preferred.includes(b.key))
+          ?? oddsGame.bookmakers?.[0];
+        if (!bookmaker) { skipped++; continue; }
+
+        let homeSpread: number | null = null;
+        let homeMoneyline: number | null = null;
+        let awayMoneyline: number | null = null;
+
+        const spreadsMarket = bookmaker.markets?.find((m: any) => m.key === "spreads");
+        if (spreadsMarket) {
+          const homeOutcome = spreadsMarket.outcomes?.find((o: any) => fuzzyMatch(oddsGame.home_team, o.name));
+          if (homeOutcome) homeSpread = homeOutcome.point;
+        }
+
+        const h2hMarket = bookmaker.markets?.find((m: any) => m.key === "h2h");
+        if (h2hMarket) {
+          const homeO = h2hMarket.outcomes?.find((o: any) => fuzzyMatch(oddsGame.home_team, o.name));
+          const awayO = h2hMarket.outcomes?.find((o: any) => fuzzyMatch(oddsGame.away_team, o.name));
+          if (homeO) homeMoneyline = homeO.price;
+          if (awayO) awayMoneyline = awayO.price;
+        }
+
+        const existing = dbGame.gameOdds;
+        const prevSpread = existing && existing.spread !== null && existing.spread !== homeSpread
+          ? existing.spread
+          : existing?.previousSpread ?? null;
+
+        await db.insert(gameOdds).values({
+          gameId: dbGame.id,
+          spread: homeSpread,
+          previousSpread: prevSpread,
+          homeMoneyline,
+          awayMoneyline,
+          refreshedAt: new Date(),
+        }).onConflictDoUpdate({
+          target: gameOdds.gameId,
+          set: {
+            spread: homeSpread,
+            previousSpread: prevSpread,
+            homeMoneyline,
+            awayMoneyline,
+            refreshedAt: new Date(),
+          },
+        });
+
+        matched++;
+      }
+
+      res.json({ matched, skipped, total: oddsData.length });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });

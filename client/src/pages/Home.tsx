@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useState } from "react";
 
 async function fetchSeasons() {
   const res = await fetch("/api/seasons", { credentials: "include" });
@@ -13,7 +14,22 @@ async function fetchWeeks(seasonId: string) {
   return res.json();
 }
 
+async function fetchMe() {
+  const res = await fetch("/api/me", { credentials: "include" });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export default function Home() {
+  const [oddsResult, setOddsResult] = useState<{ matched: number; skipped: number; total: number } | null>(null);
+  const [oddsError, setOddsError] = useState<string | null>(null);
+
+  const { data: me } = useQuery({
+    queryKey: ["/api/me"],
+    queryFn: fetchMe,
+    retry: false,
+  });
+
   const { data: seasons = [], isLoading: seasonsLoading } = useQuery({
     queryKey: ["/api/seasons"],
     queryFn: fetchSeasons,
@@ -25,6 +41,26 @@ export default function Home() {
     queryKey: ["/api/seasons", activeSeason?.id, "weeks"],
     queryFn: () => fetchWeeks(activeSeason.id),
     enabled: !!activeSeason,
+  });
+
+  const refreshOdds = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/odds/refresh", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to refresh odds");
+      return data;
+    },
+    onSuccess: (data) => {
+      setOddsResult(data);
+      setOddsError(null);
+    },
+    onError: (e: any) => {
+      setOddsError(e.message);
+      setOddsResult(null);
+    },
   });
 
   if (seasonsLoading) {
@@ -43,6 +79,7 @@ export default function Home() {
 
   const openWeeks = weeks.filter((w: any) => w.status === "open");
   const scoredWeeks = weeks.filter((w: any) => w.status === "scored");
+  const isAdmin = me?.member?.role === "admin";
 
   return (
     <div>
@@ -106,7 +143,7 @@ export default function Home() {
       </div>
 
       {activeSeason && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-slate-700">Season Standings</h2>
             <Link href={`/standings/${activeSeason.id}`} className="text-blue-600 hover:text-blue-700 text-sm">
@@ -114,6 +151,43 @@ export default function Home() {
             </Link>
           </div>
           <p className="text-slate-400 text-sm">View the full standings page for rankings and dropped week details.</p>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+          <h2 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <span className="text-slate-400">⚙️</span> Admin
+          </h2>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => refreshOdds.mutate()}
+                disabled={refreshOdds.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              >
+                {refreshOdds.isPending ? (
+                  <>
+                    <span className="animate-spin">⟳</span> Refreshing…
+                  </>
+                ) : (
+                  <>🔄 Refresh Odds</>
+                )}
+              </button>
+              {oddsResult && (
+                <span className="text-sm text-green-600 font-medium">
+                  ✓ {oddsResult.matched} games updated ({oddsResult.skipped} skipped of {oddsResult.total} from API)
+                </span>
+              )}
+              {oddsError && (
+                <span className="text-sm text-red-500">{oddsError}</span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400">
+              Fetches current NFL odds from The Odds API and stores them. Run this daily during the week for fresh lines.
+              Requires the <code className="bg-slate-100 px-1 rounded">ODDS_API_KEY</code> secret.
+            </p>
+          </div>
         </div>
       )}
     </div>

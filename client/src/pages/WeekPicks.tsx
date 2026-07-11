@@ -8,6 +8,22 @@ async function fetchWeekData(weekId: string) {
   return res.json();
 }
 
+function formatMl(ml: number | null | undefined): string {
+  if (ml == null) return "";
+  return ml > 0 ? `+${ml}` : `${ml}`;
+}
+
+function SpreadMovement({ prev, curr }: { prev: number | null; curr: number | null }) {
+  if (prev == null || curr == null || prev === curr) return null;
+  const delta = Math.abs(curr - prev).toFixed(1);
+  const moved = curr < prev;
+  return (
+    <span className={`text-[10px] font-semibold px-1 py-0.5 rounded ${moved ? "text-green-700 bg-green-100" : "text-orange-700 bg-orange-100"}`}>
+      {moved ? "▼" : "▲"} {delta}
+    </span>
+  );
+}
+
 export default function WeekPicks() {
   const { weekId } = useParams<{ weekId: string }>();
   const queryClient = useQueryClient();
@@ -91,6 +107,11 @@ export default function WeekPicks() {
         {games.map((game: any) => {
           const locked = game.pickCutoffAtUtc && new Date(game.pickCutoffAtUtc) <= now;
           const draft = draftPicks[game.id];
+          const odds = game.gameOdds;
+          const homeSpread = odds?.spread ?? null;
+          const awaySpread = homeSpread !== null ? -homeSpread : null;
+          const homePrevSpread = odds?.previousSpread ?? null;
+          const awayPrevSpread = homePrevSpread !== null ? -homePrevSpread : null;
 
           return (
             <div
@@ -99,21 +120,26 @@ export default function WeekPicks() {
             >
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs text-slate-400">{formatTime(game.kickoffAtUtc)}</span>
-                {locked && (
-                  <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
-                    Locked
-                  </span>
-                )}
-                {game.neutralSite && (
-                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                    Neutral Site
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {locked && (
+                    <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                      Locked
+                    </span>
+                  )}
+                  {game.neutralSite && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                      Neutral Site
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <TeamButton
                   team={game.awayTeam}
+                  spread={awaySpread}
+                  prevSpread={awayPrevSpread}
+                  moneyline={odds?.awayMoneyline ?? null}
                   selected={draft?.teamId === game.awayTeamId}
                   locked={!!locked}
                   onClick={() => {
@@ -124,6 +150,9 @@ export default function WeekPicks() {
                 <span className="text-slate-400 font-bold text-sm shrink-0">@</span>
                 <TeamButton
                   team={game.homeTeam}
+                  spread={homeSpread}
+                  prevSpread={homePrevSpread}
+                  moneyline={odds?.homeMoneyline ?? null}
                   selected={draft?.teamId === game.homeTeamId}
                   locked={!!locked}
                   onClick={() => {
@@ -171,7 +200,15 @@ export default function WeekPicks() {
   );
 }
 
-function TeamButton({ team, selected, locked, onClick }: any) {
+function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, onClick }: {
+  team: any;
+  spread: number | null;
+  prevSpread: number | null;
+  moneyline: number | null;
+  selected: boolean;
+  locked: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -184,6 +221,19 @@ function TeamButton({ team, selected, locked, onClick }: any) {
     >
       <span className="font-bold">{team?.abbreviation}</span>
       <span className="text-xs text-slate-500 hidden sm:block">{team?.city}</span>
+      {spread !== null && (
+        <div className="flex items-center gap-1 mt-1">
+          <span className={`text-xs font-semibold ${selected ? "text-blue-600" : "text-slate-500"}`}>
+            {spread > 0 ? `+${spread}` : spread}
+          </span>
+          <SpreadMovement prev={prevSpread} curr={spread} />
+        </div>
+      )}
+      {moneyline !== null && (
+        <span className={`text-[10px] ${selected ? "text-blue-400" : "text-slate-400"}`}>
+          ML {formatMl(moneyline)}
+        </span>
+      )}
     </button>
   );
 }
