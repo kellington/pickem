@@ -168,7 +168,7 @@ export default function Home() {
     );
   }
 
-  const openWeeks = weeks.filter((w: any) => w.status === "open");
+  const openWeeks = weeks.filter((w: any) => w.status !== "scored");
   const scoredWeeks = weeks.filter((w: any) => w.status === "scored");
   const isAdmin = me?.member?.role === "admin";
 
