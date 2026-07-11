@@ -12,6 +12,7 @@ import {
 import { relations, sql } from "drizzle-orm";
 
 export const seasonStatusEnum = pgEnum("season_status", ["setup", "active", "complete"]);
+export const featureIdeaStatusEnum = pgEnum("feature_idea_status", ["submitted", "done"]);
 export const leagueMemberRoleEnum = pgEnum("league_member_role", ["admin", "player"]);
 export const leagueMemberStatusEnum = pgEnum("league_member_status", ["invited", "active", "disabled"]);
 export const weekPhaseEnum = pgEnum("week_phase", ["regular", "playoff"]);
@@ -204,6 +205,8 @@ export const featureIdeas = pgTable("feature_ideas", {
   appUserId: varchar("app_user_id").notNull().references(() => appUsers.id),
   ideaText: text("idea_text").notNull(),
   submittedAt: timestamp("submitted_at").defaultNow(),
+  status: featureIdeaStatusEnum("status").notNull().default("submitted"),
+  completedAt: timestamp("completed_at"),
 });
 
 export const gameOdds = pgTable("game_odds", {

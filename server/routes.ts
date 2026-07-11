@@ -524,13 +524,39 @@ export function registerRoutes(app: Express) {
           id: featureIdeas.id,
           ideaText: featureIdeas.ideaText,
           submittedAt: featureIdeas.submittedAt,
+          status: featureIdeas.status,
+          completedAt: featureIdeas.completedAt,
           displayName: appUsers.displayName,
           replitUsername: appUsers.replitUsername,
         })
         .from(featureIdeas)
         .innerJoin(appUsers, eq(featureIdeas.appUserId, appUsers.id))
-        .orderBy(desc(featureIdeas.submittedAt));
+        .orderBy(asc(featureIdeas.status), desc(featureIdeas.submittedAt));
       res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.patch("/api/feature-ideas/:id/complete", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      const [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admins only" });
+
+      const { id } = req.params;
+      const [updated] = await db
+        .update(featureIdeas)
+        .set({ status: "done", completedAt: new Date() })
+        .where(eq(featureIdeas.id, id))
+        .returning({ id: featureIdeas.id, status: featureIdeas.status, completedAt: featureIdeas.completedAt });
+
+      if (!updated) return res.status(404).json({ message: "Idea not found" });
+      res.json(updated);
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
