@@ -21,7 +21,7 @@ async function fetchMe() {
 }
 
 export default function Home() {
-  const [oddsResult, setOddsResult] = useState<{ matched: number; skipped: number; total: number } | null>(null);
+  const [oddsResult, setOddsResult] = useState<{ matched: number; skipped: number; total: number; lastRefreshedAt: string } | null>(null);
   const [oddsError, setOddsError] = useState<string | null>(null);
 
   const { data: me } = useQuery({
@@ -175,9 +175,19 @@ export default function Home() {
                 )}
               </button>
               {oddsResult && (
-                <span className="text-sm text-green-600 font-medium">
-                  ✓ {oddsResult.matched} games updated ({oddsResult.skipped} skipped of {oddsResult.total} from API)
-                </span>
+                <div className="text-sm text-green-600">
+                  <span className="font-medium">✓ {oddsResult.matched} games updated</span>
+                  <span className="text-slate-400 ml-2">({oddsResult.skipped} skipped · {oddsResult.total} from API)</span>
+                  <span className="text-slate-400 ml-2">
+                    Last refreshed: {new Date(oddsResult.lastRefreshedAt).toLocaleString("en-CA", {
+                      timeZone: "America/Edmonton",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
               )}
               {oddsError && (
                 <span className="text-sm text-red-500">{oddsError}</span>

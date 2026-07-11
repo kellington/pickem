@@ -401,7 +401,25 @@ export function registerRoutes(app: Express) {
       const apiKey = process.env.ODDS_API_KEY;
       if (!apiKey) return res.status(500).json({ message: "ODDS_API_KEY secret not configured. Add it in the Secrets tab." });
 
-      const oddsUrl = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${apiKey}&regions=us&markets=spreads,h2h&oddsFormat=american`;
+      // Determine the current week window: find open/setup weeks sorted by weekNumber,
+      // use the earliest open week's date range to filter both the API call and DB games.
+      const openWeeks = await db.select().from(weeks)
+        .where(sql`status IN ('open', 'setup')`)
+        .orderBy(asc(weeks.weekNumber));
+
+      let windowStart: Date | null = null;
+      let windowEnd: Date | null = null;
+      if (openWeeks.length > 0) {
+        const currentWeek = openWeeks[0];
+        windowStart = currentWeek.startsOn ?? null;
+        windowEnd = currentWeek.endsOn ?? null;
+      }
+
+      // Build API URL with optional commenceTime window
+      let oddsUrl = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${apiKey}&regions=us&markets=spreads,h2h&oddsFormat=american`;
+      if (windowStart) oddsUrl += `&commenceTimeFrom=${windowStart.toISOString()}`;
+      if (windowEnd) oddsUrl += `&commenceTimeTo=${windowEnd.toISOString()}`;
+
       const oddsResponse = await fetch(oddsUrl);
       if (!oddsResponse.ok) {
         const txt = await oddsResponse.text();
@@ -409,7 +427,9 @@ export function registerRoutes(app: Express) {
       }
       const oddsData: any[] = await oddsResponse.json();
 
+      // Load only games in the current week window
       const dbGames = await db.query.games.findMany({
+        where: openWeeks.length > 0 ? eq(games.weekId, openWeeks[0].id) : undefined,
         with: { awayTeam: true, homeTeam: true, gameOdds: true },
       });
 
@@ -426,6 +446,7 @@ export function registerRoutes(app: Express) {
 
       let matched = 0;
       let skipped = 0;
+      const refreshedAt = new Date();
 
       for (const oddsGame of oddsData) {
         const commenceTime = new Date(oddsGame.commence_time);
@@ -463,10 +484,10 @@ export function registerRoutes(app: Express) {
           if (awayO) awayMoneyline = awayO.price;
         }
 
+        // Always carry forward the current spread as previousSpread before overwriting —
+        // this ensures movement reflects current-vs-immediately-prior, not a stale historical value.
         const existing = dbGame.gameOdds;
-        const prevSpread = existing && existing.spread !== null && existing.spread !== homeSpread
-          ? existing.spread
-          : existing?.previousSpread ?? null;
+        const prevSpread = existing?.spread ?? null;
 
         await db.insert(gameOdds).values({
           gameId: dbGame.id,
@@ -474,7 +495,7 @@ export function registerRoutes(app: Express) {
           previousSpread: prevSpread,
           homeMoneyline,
           awayMoneyline,
-          refreshedAt: new Date(),
+          refreshedAt,
         }).onConflictDoUpdate({
           target: gameOdds.gameId,
           set: {
@@ -482,14 +503,14 @@ export function registerRoutes(app: Express) {
             previousSpread: prevSpread,
             homeMoneyline,
             awayMoneyline,
-            refreshedAt: new Date(),
+            refreshedAt,
           },
         });
 
         matched++;
       }
 
-      res.json({ matched, skipped, total: oddsData.length });
+      res.json({ matched, skipped, total: oddsData.length, lastRefreshedAt: refreshedAt.toISOString() });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
