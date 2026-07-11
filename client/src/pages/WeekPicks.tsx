@@ -366,6 +366,7 @@ export default function WeekPicks() {
                   moneyline={odds?.awayMoneyline ?? null}
                   selected={draft?.teamId === game.awayTeamId}
                   locked={locked}
+                  isWinner={game.gameResult?.status === "final" && game.gameResult?.winningTeamId === game.awayTeamId}
                   onClick={() => !locked && handleTeamClick(game.id, game.awayTeamId)}
                 />
                 <span className="text-slate-400 font-bold text-sm shrink-0">@</span>
@@ -376,6 +377,7 @@ export default function WeekPicks() {
                   moneyline={odds?.homeMoneyline ?? null}
                   selected={draft?.teamId === game.homeTeamId}
                   locked={locked}
+                  isWinner={game.gameResult?.status === "final" && game.gameResult?.winningTeamId === game.homeTeamId}
                   onClick={() => !locked && handleTeamClick(game.id, game.homeTeamId)}
                 />
 
@@ -437,13 +439,14 @@ export default function WeekPicks() {
   );
 }
 
-function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, onClick }: {
+function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isWinner, onClick }: {
   team: any;
   spread: number | null;
   prevSpread: number | null;
   moneyline: number | null;
   selected: boolean;
   locked: boolean;
+  isWinner: boolean;
   onClick: () => void;
 }) {
   return (
@@ -458,7 +461,7 @@ function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, onC
           : "border-slate-200 hover:border-slate-300 text-slate-700"
       }`}
     >
-      <span className="font-bold">{team?.abbreviation}</span>
+      <span className={isWinner ? "font-black text-base" : "font-bold"}>{team?.abbreviation}</span>
       <span className="text-xs text-slate-500 hidden sm:block">{team?.city}</span>
       {spread !== null && (
         <div className="flex items-center gap-1 mt-1">
