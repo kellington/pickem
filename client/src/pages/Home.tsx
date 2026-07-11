@@ -103,8 +103,31 @@ export default function Home() {
   const scoredWeeks = weeks.filter((w: any) => w.status === "scored");
   const isAdmin = me?.member?.role === "admin";
 
+  const news = [
+    { date: "July 11", text: "Added Vegas odds feature — spreads & moneylines now show on every game.", done: true },
+    { date: "Up next", text: "Tracking weekly progress and standings.", done: false },
+  ];
+
   return (
     <div>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 mb-6">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">📰 Latest</h2>
+        <ul className="space-y-2">
+          {news.map((item, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className={`mt-0.5 flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                item.done
+                  ? "bg-green-100 text-green-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}>
+                {item.date}
+              </span>
+              <span className="text-sm text-slate-700 leading-snug">{item.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800">{activeSeason.name}</h1>
         <p className="text-slate-500 text-sm">{activeSeason.year} NFL Season</p>
