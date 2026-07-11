@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 async function fetchWeekData(weekId: string) {
   const res = await fetch(`/api/weeks/${weekId}/games`, { credentials: "include" });
@@ -24,28 +24,43 @@ function SpreadMovement({ prev, curr }: { prev: number | null; curr: number | nu
   );
 }
 
+type DraftPick = { teamId: string; confidence: number };
+
 export default function WeekPicks() {
   const { weekId } = useParams<{ weekId: string }>();
   const queryClient = useQueryClient();
-  const [saving, setSaving] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [draftPicks, setDraftPicks] = useState<Record<string, { teamId: string; confidence: number }>>({});
+
+  const [draftPicks, setDraftPicks] = useState<Record<string, DraftPick>>({});
+  const [savingGames, setSavingGames] = useState<Set<string>>(new Set());
+  const [savedGames, setSavedGames] = useState<Set<string>>(new Set());
+  const [errorGames, setErrorGames] = useState<Record<string, string>>({});
+  const initialized = useRef(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/weeks", weekId, "games"],
     queryFn: () => fetchWeekData(weekId!),
     enabled: !!weekId,
-    onSuccess: (data: any) => {
-      const initial: typeof draftPicks = {};
-      for (const pick of data.myPicks || []) {
-        initial[pick.gameId] = { teamId: pick.selectedTeamId, confidence: pick.confidenceValue };
-      }
-      setDraftPicks(initial);
-    },
-  } as any);
+  });
 
-  const submitPick = useMutation({
-    mutationFn: async ({ gameId, selectedTeamId, confidenceValue }: any) => {
+  useEffect(() => {
+    if (!data) return;
+    const serverPicks: Record<string, DraftPick> = {};
+    for (const pick of data.myPicks || []) {
+      serverPicks[pick.gameId] = {
+        teamId: pick.selectedTeamId,
+        confidence: pick.confidenceValue,
+      };
+    }
+    if (!initialized.current) {
+      initialized.current = true;
+      setDraftPicks(serverPicks);
+    } else {
+      setDraftPicks((prev) => ({ ...serverPicks, ...prev }));
+    }
+  }, [data]);
+
+  const savePick = useMutation({
+    mutationFn: async ({ gameId, selectedTeamId, confidenceValue }: { gameId: string; selectedTeamId: string; confidenceValue: number }) => {
       const res = await fetch("/api/picks", {
         method: "POST",
         credentials: "include",
@@ -54,23 +69,66 @@ export default function WeekPicks() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message);
+        throw new Error(err.message || "Failed to save");
       }
+      return gameId;
     },
-    onSuccess: () => {
+    onSuccess: (gameId) => {
+      setSavingGames((s) => { const n = new Set(s); n.delete(gameId); return n; });
+      setSavedGames((s) => new Set([...s, gameId]));
+      setTimeout(() => setSavedGames((s) => { const n = new Set(s); n.delete(gameId); return n; }), 2000);
+      setErrorGames((e) => { const n = { ...e }; delete n[gameId]; return n; });
       queryClient.invalidateQueries({ queryKey: ["/api/weeks", weekId, "games"] });
     },
-    onError: (e: any) => setError(e.message),
+    onError: (err: any, { gameId }) => {
+      setSavingGames((s) => { const n = new Set(s); n.delete(gameId); return n; });
+      setErrorGames((e) => ({ ...e, [gameId]: err.message }));
+    },
   });
+
+  const handleTeamClick = (gameId: string, teamId: string) => {
+    setDraftPicks((prev) => {
+      const updated = { ...prev, [gameId]: { teamId, confidence: prev[gameId]?.confidence || 0 } };
+      const confidence = updated[gameId].confidence;
+      if (confidence) {
+        triggerSave(gameId, teamId, confidence);
+      }
+      return updated;
+    });
+  };
+
+  const handleConfidenceChange = (gameId: string, confidence: number) => {
+    setDraftPicks((prev) => {
+      const teamId = prev[gameId]?.teamId || "";
+      const updated = { ...prev, [gameId]: { teamId, confidence } };
+      if (teamId) {
+        triggerSave(gameId, teamId, confidence);
+      }
+      return updated;
+    });
+  };
+
+  const triggerSave = (gameId: string, selectedTeamId: string, confidenceValue: number) => {
+    setSavingGames((s) => new Set([...s, gameId]));
+    savePick.mutate({ gameId, selectedTeamId, confidenceValue });
+  };
 
   if (isLoading) return <div className="text-center py-16 text-slate-400">Loading...</div>;
 
   const games = data?.games || [];
   const now = new Date();
-  const pickableGames = games.filter((g: any) => !g.pickCutoffAtUtc || new Date(g.pickCutoffAtUtc) > now);
-  const totalGames = pickableGames.length;
 
-  const usedConfidence = new Set(Object.values(draftPicks).map((p) => p.confidence));
+  const usedConfidence = new Set(
+    Object.values(draftPicks).filter((p) => p.confidence > 0).map((p) => p.confidence)
+  );
+
+  const pickableCount = games.filter((g: any) => {
+    const completed = ["final", "in_progress"].includes(g.gameResult?.status);
+    const cutoffPassed = g.pickCutoffAtUtc && new Date(g.pickCutoffAtUtc) <= now;
+    return !completed && !cutoffPassed;
+  }).length;
+
+  const totalGames = games.length;
 
   const formatTime = (utc: string | null) => {
     if (!utc) return "TBD";
@@ -84,29 +142,29 @@ export default function WeekPicks() {
     });
   };
 
-  const handlePick = async (gameId: string, teamId: string, confidence: number) => {
-    setSaving(gameId);
-    setError(null);
-    setDraftPicks((prev) => ({ ...prev, [gameId]: { teamId, confidence } }));
-    await submitPick.mutateAsync({ gameId, selectedTeamId: teamId, confidenceValue: confidence });
-    setSaving(null);
-  };
+  const pickedCount = Object.values(draftPicks).filter((p) => p.teamId && p.confidence > 0).length;
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-1">My Picks</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-2xl font-bold text-slate-800">My Picks</h1>
+        <span className="text-sm text-slate-500">{pickedCount} / {totalGames} picked</span>
+      </div>
       <p className="text-slate-500 text-sm mb-5">
-        Assign each confidence value (1–{totalGames}) once. Higher = more confident.
+        Assign each confidence value (1–{totalGames}) once. Higher = more confident. Picks save automatically.
       </p>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 mb-4 text-sm">{error}</div>
-      )}
 
       <div className="space-y-3">
         {games.map((game: any) => {
-          const locked = game.pickCutoffAtUtc && new Date(game.pickCutoffAtUtc) <= now;
+          const completed = ["final", "in_progress"].includes(game.gameResult?.status);
+          const cutoffPassed = game.pickCutoffAtUtc && new Date(game.pickCutoffAtUtc) <= now;
+          const locked = completed || !!cutoffPassed;
+
           const draft = draftPicks[game.id];
+          const isSaving = savingGames.has(game.id);
+          const isSaved = savedGames.has(game.id);
+          const saveError = errorGames[game.id];
+
           const odds = game.gameOdds;
           const homeSpread = odds?.spread ?? null;
           const awaySpread = homeSpread !== null ? -homeSpread : null;
@@ -116,12 +174,17 @@ export default function WeekPicks() {
           return (
             <div
               key={game.id}
-              className={`bg-white rounded-xl border p-4 shadow-sm transition-opacity ${locked ? "opacity-70" : ""}`}
+              className={`bg-white rounded-xl border p-4 shadow-sm ${locked ? "opacity-70" : ""}`}
             >
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs text-slate-400">{formatTime(game.kickoffAtUtc)}</span>
                 <div className="flex items-center gap-2">
-                  {locked && (
+                  {completed && (
+                    <span className="text-xs bg-slate-800 text-white px-2 py-0.5 rounded-full">
+                      Final
+                    </span>
+                  )}
+                  {!completed && cutoffPassed && (
                     <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
                       Locked
                     </span>
@@ -141,11 +204,8 @@ export default function WeekPicks() {
                   prevSpread={awayPrevSpread}
                   moneyline={odds?.awayMoneyline ?? null}
                   selected={draft?.teamId === game.awayTeamId}
-                  locked={!!locked}
-                  onClick={() => {
-                    if (!locked && draft?.confidence) handlePick(game.id, game.awayTeamId, draft.confidence);
-                    else setDraftPicks((p) => ({ ...p, [game.id]: { teamId: game.awayTeamId, confidence: p[game.id]?.confidence || 0 } }));
-                  }}
+                  locked={locked}
+                  onClick={() => !locked && handleTeamClick(game.id, game.awayTeamId)}
                 />
                 <span className="text-slate-400 font-bold text-sm shrink-0">@</span>
                 <TeamButton
@@ -154,24 +214,17 @@ export default function WeekPicks() {
                   prevSpread={homePrevSpread}
                   moneyline={odds?.homeMoneyline ?? null}
                   selected={draft?.teamId === game.homeTeamId}
-                  locked={!!locked}
-                  onClick={() => {
-                    if (!locked && draft?.confidence) handlePick(game.id, game.homeTeamId, draft.confidence);
-                    else setDraftPicks((p) => ({ ...p, [game.id]: { teamId: game.homeTeamId, confidence: p[game.id]?.confidence || 0 } }));
-                  }}
+                  locked={locked}
+                  onClick={() => !locked && handleTeamClick(game.id, game.homeTeamId)}
                 />
 
-                <div className="ml-auto shrink-0">
+                <div className="ml-auto shrink-0 flex flex-col items-end gap-1">
                   <select
-                    disabled={!!locked || !draft?.teamId}
+                    disabled={locked}
                     value={draft?.confidence || ""}
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
-                      if (draft?.teamId) {
-                        handlePick(game.id, draft.teamId, val);
-                      } else {
-                        setDraftPicks((p) => ({ ...p, [game.id]: { ...p[game.id], confidence: val } }));
-                      }
+                      if (!isNaN(val)) handleConfidenceChange(game.id, val);
                     }}
                     className="border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 bg-white"
                   >
@@ -186,16 +239,39 @@ export default function WeekPicks() {
                       </option>
                     ))}
                   </select>
-                </div>
 
-                {saving === game.id && (
-                  <span className="text-xs text-blue-500">Saving...</span>
-                )}
+                  <div className="h-3.5 flex items-center">
+                    {isSaving && (
+                      <span className="text-[10px] text-blue-400 animate-pulse">Saving…</span>
+                    )}
+                    {!isSaving && isSaved && (
+                      <span className="text-[10px] text-green-500">✓ Saved</span>
+                    )}
+                    {!isSaving && saveError && (
+                      <span className="text-[10px] text-red-500" title={saveError}>Error</span>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {saveError && (
+                <p className="text-xs text-red-500 mt-2 text-right">{saveError}</p>
+              )}
             </div>
           );
         })}
       </div>
+
+      {pickedCount > 0 && pickedCount < totalGames && pickableCount > 0 && (
+        <p className="text-center text-sm text-slate-400 mt-6">
+          {totalGames - pickedCount} game{totalGames - pickedCount !== 1 ? "s" : ""} still need a pick
+        </p>
+      )}
+      {pickedCount === totalGames && (
+        <p className="text-center text-sm text-green-600 font-medium mt-6">
+          ✓ All picks submitted — good luck!
+        </p>
+      )}
     </div>
   );
 }
@@ -216,6 +292,8 @@ function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, onC
       className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg border-2 transition-colors text-sm font-medium disabled:cursor-default ${
         selected
           ? "border-blue-500 bg-blue-50 text-blue-800"
+          : locked
+          ? "border-slate-100 text-slate-500"
           : "border-slate-200 hover:border-slate-300 text-slate-700"
       }`}
     >
