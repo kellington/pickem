@@ -346,9 +346,13 @@ export function registerRoutes(app: Express) {
       const allPickScores = await db.select().from(pickScores)
         .where(sql`pick_id IN (SELECT id FROM picks WHERE week_id = ${weekId})`);
 
+      const weekScored = week.status === "scored";
+
       const result = members.map((sm) => {
         const memberPicks = allPicks.filter((p) => p.seasonMemberId === sm.id);
-        const revealedGames = weekGamesList.filter((g) => g.kickoffAtUtc && g.kickoffAtUtc <= now);
+        const revealedGames = weekScored
+          ? weekGamesList
+          : weekGamesList.filter((g) => g.kickoffAtUtc && g.kickoffAtUtc <= now);
         const revealedPicks = memberPicks.filter((p) => revealedGames.some((g) => g.id === p.gameId));
         const scoredPicks = revealedPicks.map((p) => {
           const ps = allPickScores.find((ps) => ps.pickId === p.id);
@@ -364,7 +368,7 @@ export function registerRoutes(app: Express) {
         };
       });
 
-      res.json({ games: weekGamesList, members: result });
+      res.json({ games: weekGamesList, members: result, weekStatus: week.status });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });

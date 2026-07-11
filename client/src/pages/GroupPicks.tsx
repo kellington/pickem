@@ -36,11 +36,12 @@ export default function GroupPicks() {
 
   const games = data?.games || [];
   const members = data?.members || [];
+  const weekScored = data?.weekStatus === "scored";
   const now = new Date();
 
-  const revealedGames = games.filter(
-    (g: any) => g.kickoffAtUtc && new Date(g.kickoffAtUtc) <= now
-  );
+  const revealedGames = weekScored
+    ? games
+    : games.filter((g: any) => g.kickoffAtUtc && new Date(g.kickoffAtUtc) <= now);
 
   const formatTime = (utc: string | null) => {
     if (!utc) return "TBD";
