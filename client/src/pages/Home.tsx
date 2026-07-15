@@ -149,6 +149,15 @@ export default function Home() {
     },
   });
 
+  const fixInvites = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/fix-invites", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed");
+      return data;
+    },
+  });
+
   const scoreWeek = useMutation({
     mutationFn: async (weekId: string) => {
       const res = await fetch(`/api/admin/score-week/${weekId}`, { method: "POST", credentials: "include" });
@@ -321,26 +330,47 @@ export default function Home() {
             <span className="text-slate-400">⚙️</span> Admin
           </h2>
           <div className="flex flex-col gap-3">
-            {/* Temporary — seed the invite list into this database */}
+            {/* Temporary — seed the invite list + reconcile existing members */}
             <div className="border border-purple-200 bg-purple-50 rounded-lg p-3">
-              <p className="text-sm font-medium text-purple-800 mb-2">👥 Seed Invited Members (run once in prod)</p>
-              <div className="flex items-center gap-3 flex-wrap">
-                <button
-                  onClick={() => seedInvites.mutate()}
-                  disabled={seedInvites.isPending || seedInvites.isSuccess}
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-40 transition-colors"
-                >
-                  {seedInvites.isPending ? <><span className="animate-spin">⟳</span> Seeding…</> :
-                   seedInvites.isSuccess ? <>✓ Done</> : <>Seed 18 Invites</>}
-                </button>
-                {seedInvites.isSuccess && (
-                  <span className="text-sm text-green-700 font-medium">
-                    {seedInvites.data.inserted} inserted, {seedInvites.data.skipped} already present
-                  </span>
-                )}
-                {seedInvites.isError && (
-                  <span className="text-sm text-red-600">{(seedInvites.error as any)?.message}</span>
-                )}
+              <p className="text-sm font-medium text-purple-800 mb-2">👥 Invite Management (run once in prod)</p>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => seedInvites.mutate()}
+                    disabled={seedInvites.isPending || seedInvites.isSuccess}
+                    className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-40 transition-colors"
+                  >
+                    {seedInvites.isPending ? <><span className="animate-spin">⟳</span> Seeding…</> :
+                     seedInvites.isSuccess ? <>✓ Done</> : <>Seed 18 Invites</>}
+                  </button>
+                  {seedInvites.isSuccess && (
+                    <span className="text-sm text-green-700 font-medium">
+                      {seedInvites.data.inserted} inserted, {seedInvites.data.skipped} already present
+                    </span>
+                  )}
+                  {seedInvites.isError && (
+                    <span className="text-sm text-red-600">{(seedInvites.error as any)?.message}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => fixInvites.mutate()}
+                    disabled={fixInvites.isPending || fixInvites.isSuccess}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                  >
+                    {fixInvites.isPending ? <><span className="animate-spin">⟳</span> Fixing…</> :
+                     fixInvites.isSuccess ? <>✓ Done</> : <>Fix Duplicates</>}
+                  </button>
+                  <span className="text-xs text-purple-700">Sets approved_email on active members, removes stale invited rows</span>
+                  {fixInvites.isSuccess && (
+                    <span className="text-sm text-green-700 font-medium">
+                      {fixInvites.data.fixed} updated, {fixInvites.data.deleted} deleted
+                    </span>
+                  )}
+                  {fixInvites.isError && (
+                    <span className="text-sm text-red-600">{(fixInvites.error as any)?.message}</span>
+                  )}
+                </div>
               </div>
             </div>
 

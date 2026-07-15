@@ -944,6 +944,58 @@ export function registerRoutes(app: Express) {
     res.sendFile(latest);
   });
 
+  // Temporary — reconcile app_users emails with league_members. Run after seed-invites.
+  app.post("/api/admin/fix-invites", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const log: string[] = [];
+      let fixed = 0, deleted = 0;
+
+      // For every app_user that has a known email, ensure their active league_member
+      // row has approved_email set and any duplicate invited rows are removed.
+      const allUsers = await db.select().from(appUsers);
+      for (const au of allUsers) {
+        if (!au.email) continue;
+        const lc = au.email.toLowerCase();
+
+        // Find their active member row (linked by app_user_id)
+        const [activeMember] = await db.select().from(leagueMembers)
+          .where(eq(leagueMembers.appUserId, au.id));
+        if (!activeMember) continue;
+
+        // Set approved_email on the active row if not already set
+        if (!activeMember.approvedEmail) {
+          await db.update(leagueMembers)
+            .set({ approvedEmail: lc })
+            .where(eq(leagueMembers.id, activeMember.id));
+          log.push(`UPDATED approved_email=${lc} on active member ${activeMember.id} (${au.replitUsername})`);
+          fixed++;
+        }
+
+        // Delete any duplicate invited rows with the same email (stale from seed)
+        const dupes = await db.select().from(leagueMembers)
+          .where(and(
+            sql`lower(approved_email) = ${lc}`,
+            eq(leagueMembers.status, "invited")
+          ));
+        for (const dupe of dupes) {
+          await db.delete(leagueMembers).where(eq(leagueMembers.id, dupe.id));
+          log.push(`DELETED stale invited row ${dupe.id} (${lc})`);
+          deleted++;
+        }
+      }
+
+      res.json({ ok: true, fixed, deleted, log });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Temporary one-shot admin endpoint — remove after running in production
   app.post("/api/admin/seed-invites", isAuthenticated, async (req: any, res) => {
     try {
