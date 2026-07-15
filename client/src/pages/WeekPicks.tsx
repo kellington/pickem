@@ -119,8 +119,9 @@ export default function WeekPicks() {
     const now = new Date();
     return gameList.filter((g: any) => {
       const completed = ["final", "in_progress"].includes(g.gameResult?.status);
-      const cutoffPassed = g.pickCutoffAtUtc && new Date(g.pickCutoffAtUtc) <= now;
-      const locked = completed || !!cutoffPassed;
+      const cutoffTime = g.pickCutoffAtUtc ?? g.kickoffAtUtc;
+      const cutoffPassed = cutoffTime ? new Date(cutoffTime) <= now : true;
+      const locked = completed || cutoffPassed;
       const alreadyPicked = currentDraft[g.id]?.teamId && currentDraft[g.id]?.confidence > 0;
       return !locked && !alreadyPicked;
     });
@@ -207,7 +208,10 @@ export default function WeekPicks() {
       const openGameIds = new Set(
         gameList
           .filter((g: any) => !["final", "in_progress"].includes(g.gameResult?.status ?? ""))
-          .filter((g: any) => !g.pickCutoffAtUtc || new Date(g.pickCutoffAtUtc) > now)
+          .filter((g: any) => {
+            const cutoffTime = g.pickCutoffAtUtc ?? g.kickoffAtUtc;
+            return cutoffTime ? new Date(cutoffTime) > now : false;
+          })
           .map((g: any) => g.id)
       );
 
@@ -318,8 +322,9 @@ export default function WeekPicks() {
       <div className="space-y-3">
         {games.map((game: any) => {
           const completed = ["final", "in_progress"].includes(game.gameResult?.status);
-          const cutoffPassed = game.pickCutoffAtUtc && new Date(game.pickCutoffAtUtc) <= now;
-          const locked = completed || !!cutoffPassed;
+          const cutoffTime = game.pickCutoffAtUtc ?? game.kickoffAtUtc;
+          const cutoffPassed = cutoffTime ? new Date(cutoffTime) <= now : true;
+          const locked = completed || cutoffPassed;
 
           const draft = draftPicks[game.id];
           const isSaving = savingGames.has(game.id);

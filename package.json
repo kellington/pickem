@@ -17,6 +17,7 @@
     "fetch:schedule": "tsx scripts/fetch-schedule.ts",
     "seed:games": "tsx scripts/seed-games.ts",
     "seed:schedule": "tsx scripts/seed-schedule.ts",
+    "seed:invites": "tsx scripts/seed-invites.ts",
     "test": "tsx --test server/tests/*.test.ts"
   },
   "keywords": [],

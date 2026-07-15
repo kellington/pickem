@@ -10,6 +10,19 @@ import {
 } from "../shared/schema.js";
 import { eq, and, sql } from "drizzle-orm";
 
+type GameLike = { pickCutoffAtUtc: Date | null; kickoffAtUtc: Date | null };
+
+/**
+ * A game is locked when the effective cutoff has passed.
+ * Falls back to kickoffAtUtc when pickCutoffAtUtc is null (H3).
+ * If neither timestamp exists the game is treated as not pickable (locked).
+ */
+export function isGameLocked(game: GameLike): boolean {
+  const cutoff = game.pickCutoffAtUtc ?? game.kickoffAtUtc;
+  if (!cutoff) return true;
+  return new Date() >= cutoff;
+}
+
 interface ValidatePickInput {
   game: typeof games.$inferSelect;
   selectedTeamId: string;
@@ -25,9 +38,7 @@ export function validatePick({
   weekGames,
   existingPicks,
 }: ValidatePickInput): string | null {
-  const now = new Date();
-
-  if (game.pickCutoffAtUtc && now >= game.pickCutoffAtUtc) {
+  if (isGameLocked(game)) {
     return "Picks are locked for this game";
   }
 
@@ -40,12 +51,11 @@ export function validatePick({
     return "Invalid team selection";
   }
 
-  const pickableCount = weekGames.filter(
-    (g) => !g.pickCutoffAtUtc || now < g.pickCutoffAtUtc
-  ).length;
-
-  if (confidenceValue < 1 || confidenceValue > pickableCount) {
-    return `Confidence value must be between 1 and ${pickableCount}`;
+  // H4: validate against total games in the week, not just still-open ones.
+  // The unique constraint handles duplicates; the range should not shrink as games lock.
+  const totalGames = weekGames.length;
+  if (confidenceValue < 1 || confidenceValue > totalGames) {
+    return `Confidence value must be between 1 and ${totalGames}`;
   }
 
   const conflictingPick = existingPicks.find(
@@ -127,12 +137,21 @@ export async function scoreBatchForWeek(weekId: string) {
   return { ok: true, picksScored: totalScored };
 }
 
+/**
+ * Computes dropped-week totals for one member's weekly scores.
+ *
+ * H5 — phased drops: no weeks are dropped until 5 weeks have been scored.
+ * From week 5 on: effectiveDrops = min(droppedWeekCount, weeksScored − 4).
+ * This prevents adjusted totals from zeroing out in the early season.
+ */
 export function computeStandings(
   memberWeeklyScores: { seasonMemberId: string; rawPoints: number; weekId: string }[],
-  droppedWeekCount: number
+  droppedWeekCount: number,
+  weeksScored: number
 ) {
+  const effectiveDrops = Math.min(droppedWeekCount, Math.max(0, weeksScored - 4));
   const sortedAsc = [...memberWeeklyScores].sort((a, b) => a.rawPoints - b.rawPoints);
-  const droppedWeekIds = sortedAsc.slice(0, droppedWeekCount).map((ws) => ws.weekId);
+  const droppedWeekIds = sortedAsc.slice(0, effectiveDrops).map((ws) => ws.weekId);
   const rawTotal = memberWeeklyScores.reduce((acc, ws) => acc + ws.rawPoints, 0);
   const droppedTotal = memberWeeklyScores
     .filter((ws) => droppedWeekIds.includes(ws.weekId))

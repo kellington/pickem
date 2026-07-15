@@ -24,7 +24,7 @@ import {
   gameOdds,
 } from "../shared/schema.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
-import { validatePick, scoreBatchForWeek } from "./domain.js";
+import { validatePick, scoreBatchForWeek, isGameLocked, computeStandings } from "./domain.js";
 
 export function registerRoutes(app: Express) {
   app.get("/api/me", isAuthenticated, async (req: any, res) => {
@@ -113,15 +113,8 @@ export function registerRoutes(app: Express) {
             joinedAt: new Date(),
           }).where(eq(leagueMembers.id, matched.id)).returning();
         } else {
-          // No pre-approved record — auto-create. First member becomes admin.
-          const [existingAny] = await db.select().from(leagueMembers).limit(1);
-          const role = existingAny ? "player" : "admin";
-          [member] = await db.insert(leagueMembers).values({
-            appUserId: user.id,
-            role,
-            status: "active",
-            joinedAt: new Date(),
-          }).returning();
+          // H1: invite-only — no auto-create. Admin must pre-seed a league_members row.
+          return res.status(403).json({ message: "You're not on the invite list. Ask the league admin to add you." });
         }
       }
 
@@ -300,8 +293,12 @@ export function registerRoutes(app: Express) {
         with: { gameResult: true },
       });
 
+      // H2: respect cutoff lock as well as result status
       const openGameIds = gamesWithResults
-        .filter((g) => !["final", "in_progress"].includes(g.gameResult?.status ?? ""))
+        .filter((g) =>
+          !["final", "in_progress"].includes(g.gameResult?.status ?? "") &&
+          !isGameLocked(g)
+        )
         .map((g) => g.id);
 
       if (openGameIds.length === 0) return res.json({ ok: true, deleted: 0 });
@@ -392,27 +389,31 @@ export function registerRoutes(app: Express) {
 
       const result = members.map((sm) => {
         const memberWeeklyScores = allWeeklyScores.filter((ws) => ws.seasonMemberId === sm.id);
-        const sortedAsc = [...memberWeeklyScores].sort((a, b) => a.rawPoints - b.rawPoints);
-        const droppedWeeks = sortedAsc.slice(0, season.droppedWeekCount).map((ws) => ws.weekId);
-        const rawTotal = memberWeeklyScores.reduce((acc, ws) => acc + ws.rawPoints, 0);
-        const droppedTotal = memberWeeklyScores
-          .filter((ws) => droppedWeeks.includes(ws.weekId))
-          .reduce((acc, ws) => acc + ws.rawPoints, 0);
+        const weeksScored = memberWeeklyScores.length;
+        const correctPickTotal = memberWeeklyScores.reduce((acc, ws) => acc + ws.correctPickCount, 0);
+
+        // H5 + M2: use shared computeStandings with phased drop formula
+        const standing = computeStandings(memberWeeklyScores, season.droppedWeekCount, weeksScored);
 
         return {
           seasonMemberId: sm.id,
           displayName: sm.leagueMember?.playerProfile?.teamName || "Unknown",
           initials: sm.leagueMember?.playerProfile?.initials || "??",
-          weeksScored: memberWeeklyScores.length,
-          rawTotalPoints: rawTotal,
-          droppedPoints: droppedTotal,
-          adjustedTotalPoints: rawTotal - droppedTotal,
-          correctPickTotal: memberWeeklyScores.reduce((acc, ws) => acc + ws.correctPickCount, 0),
+          weeksScored,
+          rawTotalPoints: standing.rawTotal,
+          droppedPoints: standing.droppedPoints,
+          adjustedTotalPoints: standing.adjustedTotal,
+          correctPickTotal,
           weeklyScores: memberWeeklyScores,
         };
       });
 
-      result.sort((a, b) => b.adjustedTotalPoints - a.adjustedTotalPoints);
+      // L5: tiebreaker by correct pick count, then raw points
+      result.sort((a, b) =>
+        b.adjustedTotalPoints - a.adjustedTotalPoints ||
+        b.correctPickTotal - a.correctPickTotal ||
+        b.rawTotalPoints - a.rawTotalPoints
+      );
       result.forEach((r, i) => (r as any).rank = i + 1);
 
       res.json({ season, standings: result });
