@@ -86,13 +86,16 @@ type IdeaRow = {
   id: string;
   ideaText: string;
   submittedAt: string;
+  status: "submitted" | "done";
+  completedAt: string | null;
   displayName: string | null;
   replitUsername: string | null;
 };
 
-function IdeasListModal({ onClose }: { onClose: () => void }) {
+function IdeasListModal({ onClose, isAdmin }: { onClose: () => void; isAdmin: boolean }) {
   const [ideas, setIdeas] = useState<IdeaRow[] | null>(null);
   const [error, setError] = useState(false);
+  const [marking, setMarking] = useState<string | null>(null);
 
   useState(() => {
     fetch("/api/feature-ideas")
@@ -101,11 +104,36 @@ function IdeasListModal({ onClose }: { onClose: () => void }) {
       .catch(() => setError(true));
   });
 
-  const fmt = (iso: string) => {
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const fmtDateTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" }) +
       " " + d.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" });
   };
+
+  const markDone = async (id: string) => {
+    setMarking(id);
+    try {
+      const res = await fetch(`/api/feature-ideas/${id}/complete`, { method: "PATCH" });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setIdeas((prev) => prev
+        ? prev.map((i) => i.id === id ? { ...i, status: updated.status, completedAt: updated.completedAt } : i)
+        : prev
+      );
+    } catch {
+      // silent — button just re-enables
+    } finally {
+      setMarking(null);
+    }
+  };
+
+  const pending = ideas?.filter((i) => i.status !== "done") ?? [];
+  const done = ideas?.filter((i) => i.status === "done") ?? [];
 
   return (
     <div
@@ -129,26 +157,76 @@ function IdeasListModal({ onClose }: { onClose: () => void }) {
             <p className="text-sm text-gray-500">No ideas submitted yet — be the first!</p>
           )}
           {ideas && ideas.length > 0 && (
-            <div className="flex flex-col gap-3">
-              {ideas.map((idea) => (
-                <div key={idea.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{idea.ideaText}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs font-medium text-gray-600">
-                      {idea.displayName || idea.replitUsername || "Unknown"}
-                    </span>
-                    <span className="text-gray-300">·</span>
-                    <span className="text-xs text-gray-400">{fmt(idea.submittedAt)}</span>
-                  </div>
+            <div className="flex flex-col gap-4">
+              {pending.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {pending.map((idea) => (
+                    <div key={idea.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{idea.ideaText}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-600">
+                            {idea.displayName || idea.replitUsername || "Unknown"}
+                          </span>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-xs text-gray-400">{fmtDateTime(idea.submittedAt)}</span>
+                        </div>
+                        {isAdmin && (
+                          <button
+                            onClick={() => markDone(idea.id)}
+                            disabled={marking === idea.id}
+                            className="text-xs px-2.5 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 transition-colors font-medium"
+                          >
+                            {marking === idea.id ? "Saving…" : "✓ Mark done"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {done.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-xs text-gray-400 font-medium">Shipped ✓</span>
+                    <div className="flex-1 h-px bg-gray-200" />
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {done.map((idea) => (
+                      <div key={idea.id} className="border border-green-200 rounded-lg p-4 bg-green-50">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed line-through decoration-green-400">{idea.ideaText}</p>
+                          <span className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 border border-green-200 rounded-full px-2.5 py-0.5">
+                            ✓ Done
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs font-medium text-gray-500">
+                            {idea.displayName || idea.replitUsername || "Unknown"}
+                          </span>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-xs text-gray-400">submitted {fmtDate(idea.submittedAt)}</span>
+                          {idea.completedAt && (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <span className="text-xs text-green-600 font-medium">shipped {fmtDate(idea.completedAt)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
 
         <div className="px-6 py-3 border-t border-gray-200 flex-shrink-0 flex justify-between items-center">
           <span className="text-xs text-gray-400">
-            {ideas ? `${ideas.length} idea${ideas.length !== 1 ? "s" : ""}` : ""}
+            {ideas ? `${pending.length} open · ${done.length} shipped` : ""}
           </span>
           <button
             onClick={onClose}
@@ -226,7 +304,7 @@ export default function Nav({ me }: { me: any }) {
         </div>
       </nav>
       {showIdea && <IdeaModal onClose={() => setShowIdea(false)} />}
-      {showList && <IdeasListModal onClose={() => setShowList(false)} />}
+      {showList && <IdeasListModal onClose={() => setShowList(false)} isAdmin={me?.member?.role === "admin"} />}
     </>
   );
 }

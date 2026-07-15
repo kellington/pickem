@@ -21,6 +21,7 @@ import {
   pickScores,
   weeklyScores,
   featureIdeas,
+  gameOdds,
 } from "../shared/schema.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { validatePick, scoreBatchForWeek } from "./domain.js";
@@ -189,6 +190,7 @@ export function registerRoutes(app: Express) {
           awayTeam: true,
           homeTeam: true,
           gameResult: true,
+          gameOdds: true,
         },
         orderBy: asc(games.displayOrder),
       });
@@ -275,6 +277,49 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.delete("/api/weeks/:weekId/picks", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const weekId = req.params.weekId;
+
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) return res.status(403).json({ message: "Not a league member" });
+
+      const [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      if (!member || member.status !== "active") return res.status(403).json({ message: "Not an active league member" });
+
+      const [week] = await db.select().from(weeks).where(eq(weeks.id, weekId));
+      if (!week) return res.status(404).json({ message: "Week not found" });
+
+      const [sm] = await db.select().from(seasonMembers)
+        .where(and(eq(seasonMembers.leagueMemberId, member.id), eq(seasonMembers.seasonId, week.seasonId)));
+      if (!sm) return res.json({ ok: true, deleted: 0 });
+
+      const gamesWithResults = await db.query.games.findMany({
+        where: eq(games.weekId, weekId),
+        with: { gameResult: true },
+      });
+
+      const openGameIds = gamesWithResults
+        .filter((g) => !["final", "in_progress"].includes(g.gameResult?.status ?? ""))
+        .map((g) => g.id);
+
+      if (openGameIds.length === 0) return res.json({ ok: true, deleted: 0 });
+
+      let deleted = 0;
+      for (const gameId of openGameIds) {
+        await db.delete(picks)
+          .where(and(eq(picks.seasonMemberId, sm.id), eq(picks.gameId, gameId)));
+        deleted++;
+      }
+
+      res.json({ ok: true, deleted });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   app.get("/api/weeks/:weekId/standings", isAuthenticated, async (req, res) => {
     try {
       const weekId = req.params.weekId;
@@ -285,7 +330,7 @@ export function registerRoutes(app: Express) {
 
       const weekGamesList = await db.query.games.findMany({
         where: eq(games.weekId, weekId),
-        with: { awayTeam: true, homeTeam: true, gameResult: true },
+        with: { awayTeam: true, homeTeam: true, gameResult: true, gameOdds: true },
         orderBy: asc(games.displayOrder),
       });
 
@@ -301,9 +346,13 @@ export function registerRoutes(app: Express) {
       const allPickScores = await db.select().from(pickScores)
         .where(sql`pick_id IN (SELECT id FROM picks WHERE week_id = ${weekId})`);
 
+      const weekScored = week.status === "scored";
+
       const result = members.map((sm) => {
         const memberPicks = allPicks.filter((p) => p.seasonMemberId === sm.id);
-        const revealedGames = weekGamesList.filter((g) => g.kickoffAtUtc && g.kickoffAtUtc <= now);
+        const revealedGames = weekScored
+          ? weekGamesList
+          : weekGamesList.filter((g) => g.kickoffAtUtc && g.kickoffAtUtc <= now);
         const revealedPicks = memberPicks.filter((p) => revealedGames.some((g) => g.id === p.gameId));
         const scoredPicks = revealedPicks.map((p) => {
           const ps = allPickScores.find((ps) => ps.pickId === p.id);
@@ -319,7 +368,7 @@ export function registerRoutes(app: Express) {
         };
       });
 
-      res.json({ games: weekGamesList, members: result });
+      res.json({ games: weekGamesList, members: result, weekStatus: week.status });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
@@ -382,7 +431,300 @@ export function registerRoutes(app: Express) {
 
       const weekId = req.params.weekId;
       const result = await scoreBatchForWeek(weekId);
+
+      // Mark the week as scored
+      await db.update(weeks).set({ status: "scored" }).where(eq(weeks.id, weekId));
+
       res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/odds/refresh", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const apiKey = process.env.ODDS_API_KEY;
+      if (!apiKey) return res.status(500).json({ message: "ODDS_API_KEY secret not configured. Add it in the Secrets tab." });
+
+      // Determine the current week window: find open/setup weeks sorted by weekNumber,
+      // use the earliest open week's date range to filter both the API call and DB games.
+      const openWeeks = await db.select().from(weeks)
+        .where(sql`status IN ('open', 'setup')`)
+        .orderBy(asc(weeks.weekNumber));
+
+      let windowStart: Date | null = null;
+      let windowEnd: Date | null = null;
+      if (openWeeks.length > 0) {
+        const currentWeek = openWeeks[0];
+        windowStart = currentWeek.startsOn ?? null;
+        windowEnd = currentWeek.endsOn ?? null;
+      }
+
+      // Build API URL with optional commenceTime window
+      let oddsUrl = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${apiKey}&regions=us&markets=spreads,h2h&oddsFormat=american`;
+      if (windowStart) oddsUrl += `&commenceTimeFrom=${windowStart.toISOString()}`;
+      if (windowEnd) oddsUrl += `&commenceTimeTo=${windowEnd.toISOString()}`;
+
+      const oddsResponse = await fetch(oddsUrl);
+      if (!oddsResponse.ok) {
+        const txt = await oddsResponse.text();
+        return res.status(502).json({ message: `Odds API returned ${oddsResponse.status}`, detail: txt.slice(0, 300) });
+      }
+      const oddsData: any[] = await oddsResponse.json();
+
+      // Load only games in the current week window
+      const dbGames = await db.query.games.findMany({
+        where: openWeeks.length > 0 ? eq(games.weekId, openWeeks[0].id) : undefined,
+        with: { awayTeam: true, homeTeam: true, gameOdds: true },
+      });
+
+      function fuzzyMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+        if (!a || !b) return false;
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, " ").trim();
+        const na = norm(a);
+        const nb = norm(b);
+        if (na === nb) return true;
+        const lastA = na.split(" ").filter(Boolean).pop() || "";
+        const lastB = nb.split(" ").filter(Boolean).pop() || "";
+        return lastA.length > 3 && lastA === lastB;
+      }
+
+      let matched = 0;
+      let skipped = 0;
+      const refreshedAt = new Date();
+
+      for (const oddsGame of oddsData) {
+        const commenceTime = new Date(oddsGame.commence_time);
+
+        const dbGame = dbGames.find((g) => {
+          if (!g.kickoffAtUtc) return false;
+          const diff = Math.abs(new Date(g.kickoffAtUtc).getTime() - commenceTime.getTime());
+          return diff <= 2 * 60 * 60 * 1000
+            && fuzzyMatch(g.homeTeam?.fullName, oddsGame.home_team)
+            && fuzzyMatch(g.awayTeam?.fullName, oddsGame.away_team);
+        });
+
+        if (!dbGame) { skipped++; continue; }
+
+        const preferred = ["draftkings", "fanduel", "betmgm"];
+        const bookmaker = oddsGame.bookmakers?.find((b: any) => preferred.includes(b.key))
+          ?? oddsGame.bookmakers?.[0];
+        if (!bookmaker) { skipped++; continue; }
+
+        let homeSpread: number | null = null;
+        let homeMoneyline: number | null = null;
+        let awayMoneyline: number | null = null;
+
+        const spreadsMarket = bookmaker.markets?.find((m: any) => m.key === "spreads");
+        if (spreadsMarket) {
+          const homeOutcome = spreadsMarket.outcomes?.find((o: any) => fuzzyMatch(oddsGame.home_team, o.name));
+          if (homeOutcome) homeSpread = homeOutcome.point;
+        }
+
+        const h2hMarket = bookmaker.markets?.find((m: any) => m.key === "h2h");
+        if (h2hMarket) {
+          const homeO = h2hMarket.outcomes?.find((o: any) => fuzzyMatch(oddsGame.home_team, o.name));
+          const awayO = h2hMarket.outcomes?.find((o: any) => fuzzyMatch(oddsGame.away_team, o.name));
+          if (homeO) homeMoneyline = homeO.price;
+          if (awayO) awayMoneyline = awayO.price;
+        }
+
+        // Always carry forward the current spread as previousSpread before overwriting —
+        // this ensures movement reflects current-vs-immediately-prior, not a stale historical value.
+        const existing = dbGame.gameOdds;
+        const prevSpread = existing?.spread ?? null;
+
+        await db.insert(gameOdds).values({
+          gameId: dbGame.id,
+          spread: homeSpread,
+          previousSpread: prevSpread,
+          homeMoneyline,
+          awayMoneyline,
+          refreshedAt,
+        }).onConflictDoUpdate({
+          target: gameOdds.gameId,
+          set: {
+            spread: homeSpread,
+            previousSpread: prevSpread,
+            homeMoneyline,
+            awayMoneyline,
+            refreshedAt,
+          },
+        });
+
+        matched++;
+      }
+
+      res.json({ matched, skipped, total: oddsData.length, lastRefreshedAt: refreshedAt.toISOString() });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Generate random fake game results for a week (testing only)
+  app.post("/api/admin/results/generate/:weekId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const weekId = req.params.weekId;
+      const weekGames = await db.query.games.findMany({
+        where: eq(games.weekId, weekId),
+        with: { awayTeam: true, homeTeam: true },
+      });
+      if (weekGames.length === 0) return res.status(404).json({ message: "No games found for this week" });
+
+      const commonScores = [7, 10, 13, 14, 17, 20, 21, 23, 24, 27, 28, 30, 31, 34, 35, 38, 41, 42];
+      const now = new Date();
+      let upserted = 0;
+
+      for (const game of weekGames) {
+        let awayScore = commonScores[Math.floor(Math.random() * commonScores.length)];
+        let homeScore = commonScores[Math.floor(Math.random() * commonScores.length)];
+        while (homeScore === awayScore) homeScore = commonScores[Math.floor(Math.random() * commonScores.length)];
+        const winningTeamId = homeScore > awayScore ? game.homeTeamId : game.awayTeamId;
+
+        await db.insert(gameResults).values({
+          gameId: game.id,
+          status: "final",
+          awayScore,
+          homeScore,
+          winningTeamId,
+          isTie: false,
+          finalizedAt: now,
+          enteredByMemberId: member.id,
+        }).onConflictDoUpdate({
+          target: gameResults.gameId,
+          set: { status: "final", awayScore, homeScore, winningTeamId, isTie: false, finalizedAt: now, updatedAt: now },
+        });
+        upserted++;
+      }
+
+      res.json({ ok: true, upserted, total: weekGames.length });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Fetch real game results from ESPN scoreboard API
+  app.post("/api/admin/results/refresh/:weekId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const weekId = req.params.weekId;
+      const [week] = await db.select().from(weeks).where(eq(weeks.id, weekId));
+      if (!week) return res.status(404).json({ message: "Week not found" });
+
+      const [season] = await db.select().from(seasons).where(eq(seasons.id, week.seasonId));
+      if (!season) return res.status(404).json({ message: "Season not found" });
+
+      const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week.weekNumber}&year=${season.year}`;
+      const espnRes = await fetch(espnUrl);
+      if (!espnRes.ok) return res.status(502).json({ message: `ESPN API returned ${espnRes.status}` });
+
+      const espnData: any = await espnRes.json();
+      const events: any[] = espnData.events || [];
+
+      const weekGames = await db.query.games.findMany({
+        where: eq(games.weekId, weekId),
+        with: { awayTeam: true, homeTeam: true },
+      });
+
+      // Some ESPN abbreviations differ from our DB — map ESPN → DB
+      const aliasMap: Record<string, string> = { WSH: "WAS", JAX: "JAC" };
+      const norm = (abbr: string) => (aliasMap[abbr.toUpperCase()] ?? abbr.toUpperCase());
+
+      let matched = 0;
+      let skipped = 0;
+      const now = new Date();
+
+      for (const event of events) {
+        const comp = event.competitions?.[0];
+        if (!comp) continue;
+
+        const statusName: string = comp.status?.type?.name ?? "";
+        const completed: boolean = comp.status?.type?.completed ?? false;
+        let status: "scheduled" | "in_progress" | "final" | "postponed" | "cancelled" = "scheduled";
+        if (statusName === "STATUS_FINAL" || completed) status = "final";
+        else if (statusName === "STATUS_IN_PROGRESS") status = "in_progress";
+        else if (statusName.includes("POSTPONED")) status = "postponed";
+        else if (statusName.includes("CANCEL")) status = "cancelled";
+
+        const homeComp = comp.competitors?.find((c: any) => c.homeAway === "home");
+        const awayComp = comp.competitors?.find((c: any) => c.homeAway === "away");
+        if (!homeComp || !awayComp) continue;
+
+        const espnHome = norm(homeComp.team?.abbreviation ?? "");
+        const espnAway = norm(awayComp.team?.abbreviation ?? "");
+
+        const dbGame = weekGames.find((g) =>
+          norm(g.homeTeam?.abbreviation ?? "") === espnHome &&
+          norm(g.awayTeam?.abbreviation ?? "") === espnAway
+        );
+        if (!dbGame) { skipped++; continue; }
+
+        const homeScore = homeComp.score != null ? parseInt(homeComp.score) : null;
+        const awayScore = awayComp.score != null ? parseInt(awayComp.score) : null;
+        let winningTeamId: string | null = null;
+        let isTie = false;
+        if (status === "final" && homeScore !== null && awayScore !== null) {
+          if (homeScore > awayScore) winningTeamId = dbGame.homeTeamId;
+          else if (awayScore > homeScore) winningTeamId = dbGame.awayTeamId;
+          else isTie = true;
+        }
+
+        await db.insert(gameResults).values({
+          gameId: dbGame.id,
+          status,
+          awayScore,
+          homeScore,
+          winningTeamId,
+          isTie,
+          finalizedAt: status === "final" ? now : null,
+          enteredByMemberId: member.id,
+        }).onConflictDoUpdate({
+          target: gameResults.gameId,
+          set: { status, awayScore, homeScore, winningTeamId, isTie, finalizedAt: status === "final" ? now : null, updatedAt: now },
+        });
+        matched++;
+      }
+
+      res.json({ ok: true, matched, skipped, total: events.length });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Clear all game results for a week (pre-season cleanup)
+  app.delete("/api/admin/results/:weekId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const weekId = req.params.weekId;
+      const weekGames = await db.select().from(games).where(eq(games.weekId, weekId));
+      let deleted = 0;
+      for (const game of weekGames) {
+        await db.delete(gameResults).where(eq(gameResults.gameId, game.id));
+        deleted++;
+      }
+      res.json({ ok: true, deleted });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
@@ -396,13 +738,162 @@ export function registerRoutes(app: Express) {
           id: featureIdeas.id,
           ideaText: featureIdeas.ideaText,
           submittedAt: featureIdeas.submittedAt,
+          status: featureIdeas.status,
+          completedAt: featureIdeas.completedAt,
           displayName: appUsers.displayName,
           replitUsername: appUsers.replitUsername,
         })
         .from(featureIdeas)
         .innerJoin(appUsers, eq(featureIdeas.appUserId, appUsers.id))
-        .orderBy(desc(featureIdeas.submittedAt));
+        .orderBy(asc(featureIdeas.status), desc(featureIdeas.submittedAt));
       res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // One-time data migration: fix duplicate seasons, activate correct 2026 season.
+  // Safe to run multiple times (idempotent). Admin-only.
+  app.post("/api/admin/fix-season-data", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) return res.status(403).json({ message: "User not found" });
+      const [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admins only" });
+
+      // Identify the correct season: the one with 272 games (ESPN-sourced).
+      const seasonGameCounts = await db.execute(sql`
+        SELECT s.id, s.status, COUNT(g.id) as game_count
+        FROM seasons s
+        JOIN weeks w ON w.season_id = s.id
+        LEFT JOIN games g ON g.week_id = w.id
+        WHERE s.year = 2026
+        GROUP BY s.id, s.status
+      `);
+      const rows = seasonGameCounts.rows as { id: string; status: string; game_count: string }[];
+
+      const correctSeason = rows.find((r) => Number(r.game_count) === 272);
+      const badSeasons = rows.filter((r) => r.id !== correctSeason?.id);
+
+      if (!correctSeason) {
+        return res.status(400).json({ message: "Could not identify the correct season (need exactly one with 272 games)." });
+      }
+
+      if (badSeasons.length === 0 && correctSeason.status === "active") {
+        return res.json({ ok: true, message: "Already fixed — correct season is active with 272 games.", alreadyDone: true });
+      }
+
+      const badSeasonIds = badSeasons.map((r) => r.id);
+      const log: string[] = [];
+
+      if (badSeasonIds.length > 0) {
+        // 1. Migrate season_members from bad seasons to correct season (skip duplicates).
+        const existing = await db.execute(sql`
+          SELECT league_member_id FROM season_members WHERE season_id = ${correctSeason.id}
+        `);
+        const alreadyIn = new Set((existing.rows as any[]).map((r) => r.league_member_id));
+
+        let migrated = 0;
+        for (const badId of badSeasonIds) {
+          const toMigrate = await db.execute(sql`
+            SELECT league_member_id FROM season_members WHERE season_id = ${badId}
+          `);
+          for (const row of toMigrate.rows as any[]) {
+            if (!alreadyIn.has(row.league_member_id)) {
+              await db.execute(sql`
+                INSERT INTO season_members (league_member_id, season_id)
+                VALUES (${row.league_member_id}, ${correctSeason.id})
+                ON CONFLICT DO NOTHING
+              `);
+              alreadyIn.add(row.league_member_id);
+              migrated++;
+            }
+          }
+        }
+        log.push(`Migrated ${migrated} season members to correct season.`);
+
+        // 2. Delete picks and game_odds on bad seasons' games (per season).
+        let totalPicksDeleted = 0;
+        for (const badId of badSeasonIds) {
+          const del = await db.execute(sql`
+            DELETE FROM picks WHERE game_id IN (
+              SELECT g.id FROM games g
+              JOIN weeks w ON w.id = g.week_id
+              WHERE w.season_id = ${badId}
+            )
+          `);
+          totalPicksDeleted += (del as any).rowCount ?? 0;
+
+          await db.execute(sql`
+            DELETE FROM game_odds WHERE game_id IN (
+              SELECT g.id FROM games g
+              JOIN weeks w ON w.id = g.week_id
+              WHERE w.season_id = ${badId}
+            )
+          `);
+
+          // 3. Delete games.
+          await db.execute(sql`
+            DELETE FROM games WHERE week_id IN (
+              SELECT id FROM weeks WHERE season_id = ${badId}
+            )
+          `);
+
+          // 4. Delete weeks.
+          await db.execute(sql`DELETE FROM weeks WHERE season_id = ${badId}`);
+
+          // 5. Delete schedule_imports.
+          await db.execute(sql`DELETE FROM schedule_imports WHERE season_id = ${badId}`);
+
+          // 6. Delete season_members on this bad season.
+          await db.execute(sql`DELETE FROM season_members WHERE season_id = ${badId}`);
+
+          // 7. Delete the bad season itself.
+          await db.execute(sql`DELETE FROM seasons WHERE id = ${badId}`);
+        }
+        log.push(`Deleted ${totalPicksDeleted} picks from bad seasons.`);
+        log.push(`Removed ${badSeasonIds.length} bad season(s).`);
+      }
+
+      // 9. Activate correct season.
+      await db.update(seasons).set({ status: "active" }).where(eq(seasons.id, correctSeason.id));
+      log.push(`Season ${correctSeason.id} set to active.`);
+
+      // 10. Open Week 1 of correct season (find it by week_number=1).
+      const [week1] = await db.select({ id: weeks.id }).from(weeks)
+        .where(and(eq(weeks.seasonId, correctSeason.id), eq(weeks.weekNumber, 1)));
+      if (week1) {
+        await db.update(weeks).set({ status: "open" }).where(eq(weeks.id, week1.id));
+        log.push(`Week 1 (${week1.id}) set to open.`);
+      }
+
+      res.json({ ok: true, log });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error", detail: String(err) });
+    }
+  });
+
+  app.patch("/api/feature-ideas/:id/complete", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      const [member] = await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id));
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admins only" });
+
+      const { id } = req.params;
+      const [updated] = await db
+        .update(featureIdeas)
+        .set({ status: "done", completedAt: new Date() })
+        .where(eq(featureIdeas.id, id))
+        .returning({ id: featureIdeas.id, status: featureIdeas.status, completedAt: featureIdeas.completedAt });
+
+      if (!updated) return res.status(404).json({ message: "Idea not found" });
+      res.json(updated);
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
