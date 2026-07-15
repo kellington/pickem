@@ -15,6 +15,11 @@ work*.
 
 If any of these conflict, ask me which one is right. Don't silently reconcile.
 
+
+## Feature Requests
+- There is a table in the Production Database: feature_ideas
+- If a feature is not marked "done", should be suggested for the next iteration
+
 ## Start of session
 
 1. Read STATE.md and TASKS.md. Skim PLAN.md. Only open PROJECT.md if scope is unclear.
