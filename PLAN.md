@@ -1,10 +1,14 @@
 # Plan
 
-*Last rewritten: 2026-05-15 (end of Replit scaffold session)*
 
 ## Current milestone
 
 **Basic Scaffold and Week One Workflow** — scaffold the Replit app and deliver the first usable path: login, select Week 1 picks with confidence points, enter results manually, and see weekly scores/standings.
+
+> **Launch deadline (hard):** the league must be live by **mid-August 2026**, ahead
+> of the NFL season — both workstreams must land by then: app verification
+> (picks/scoring/standings) **and** league operations (~15 friends onboarded,
+> season set up). This date is season-driven and does not move.
 
 ### Definition of done
 

@@ -120,3 +120,24 @@ Append-only log of meaningful decisions. Never edit past entries — if a decisi
 **Why:** For this private friend group, anyone who has a Replit account and can reach the app URL is effectively trusted. Pre-seeding approved records for every friend before they can set up a profile creates unnecessary admin friction for v1.
 **Trade-off:** Any Replit user who discovers the URL can create a profile. Acceptable for a private friend group; revisit if the app is ever more broadly accessible.
 **Impact:** Admin only needs to share the app URL with friends. No pre-seeding of `league_members` required before first login.
+
+## [2026-07-15] — Invite-only membership (reverses 2026-05-15 auto-create)
+
+**Decision:** Replace auto-create-on-profile-setup with an admin-provided invite list: `league_members` rows pre-seeded with `approved_email` (and/or `approved_replit_username`), `status = invited`. Logging in still creates an `app_users` row, but users with no matching invite get a "not invited" message instead of a membership. Bootstrap logic (first member becomes admin) is removed — the admin already exists.
+**Why:** The auto-create path let any Replit user who found the URL become an active player (2026-07-15 code review, finding H1). With launch approaching, membership should be a closed list controlled by the admin.
+**Trade-off:** Each friend's Replit-account email must be collected and seeded before they first log in; a mismatched email means a support ping to the admin. Seed emails lowercase and compare case-insensitively to reduce misses.
+**Impact:** Remove the auto-create branch in `POST /api/profile`; add an admin path (script or endpoint) to seed invited members from the email list. League ops: collect each friend's Replit email before launch.
+
+## [2026-07-15] — Dropped weeks phase in starting week 5
+
+**Decision:** No weeks are dropped from season standings until 5 weeks have been scored. From week 5 on, drops phase in one at a time: dropped weeks = `min(droppedWeekCount, weeksScored − 4)`, so 1 week is dropped at 5 scored weeks, 2 at 6, up to the configured 4. Refines the 2026-05-15 "Four dropped regular-season weeks" decision.
+**Why:** The original rule dropped the lowest 4 weeks unconditionally, which zeroes everyone's adjusted total until week 5 and makes early-season standings look broken (2026-07-15 code review, finding H5).
+**Trade-off:** Standings math depends on weeks-scored count, not just the config value; a player's adjusted total can dip when a new drop phases in.
+**Impact:** Season-standings logic (and the `computeStandings` domain function it should share) must apply the phased formula; needs unit tests covering 1–18 scored weeks.
+
+## [2026-07-15] — League operations is a first-class workstream
+
+**Decision:** The protocol files explicitly carry both workstreams — app development and league operations (friend onboarding, season admin) — with the hard mid-August 2026 launch deadline recorded in PLAN.md. Mirrors the portfolio-wide dual-workstream pattern (conforma DECISIONS.md 2026-07-15).
+**Why:** The launch deadline and onboarding work were previously scattered or unrecorded; the AI team couldn't see the ops track that gates launch as much as the code does.
+**Trade-off:** Light tagging overhead in TASKS.md and a League operations section to keep current in STATE.md.
+**Impact:** PLAN.md carries the deadline; STATE.md gains a League operations section; TASKS.md tags ops items "League ops —".
