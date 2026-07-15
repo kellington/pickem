@@ -944,6 +944,63 @@ export function registerRoutes(app: Express) {
     res.sendFile(latest);
   });
 
+  // Temporary one-shot admin endpoint — remove after running in production
+  app.post("/api/admin/seed-invites", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [user] = await db.select().from(appUsers).where(eq(appUsers.replitUserId, userId));
+      const [member] = user ? await db.select().from(leagueMembers).where(eq(leagueMembers.appUserId, user.id)) : [null];
+      if (!member || member.role !== "admin") return res.status(403).json({ message: "Admin only" });
+
+      const INVITES = [
+        { email: "sharandmike@gmail.com",        note: "Michael Smith (old)" },
+        { email: "mrmichaelasmith@proton.me",     note: "Michael Smith" },
+        { email: "stephen.d.price@gmail.com",     note: "Steve Price" },
+        { email: "iware.steve@gmail.com",          note: "Steve Campbell" },
+        { email: "brendancolecampbell@gmail.com", note: "Brendan Campbell" },
+        { email: "iamconnor97@gmail.com",          note: "Connor Campbell" },
+        { email: "dcriss11@shaw.ca",               note: "Daniel C" },
+        { email: "namkrabg@yahoo.com",             note: "Gerald" },
+        { email: "missourilover@yahoo.com",        note: "Cindy Caudron" },
+        { email: "horrocks.dave@gmail.com",        note: "Dave Horrocks" },
+        { email: "brentkellington@gmail.com",      note: "Brent Kellington" },
+        { email: "bpetrushko@icloud.com",          note: "Blake Petrushko" },
+        { email: "horrocksjj@gmail.com",           note: "Jesse Horrocks" },
+        { email: "maureenhorrocks@gmail.com",      note: "Maureen Horrocks" },
+        { email: "parkerkellington@yahoo.com",     note: "Parker Kellington" },
+        { email: "noommen@ualberta.ca",            note: "Nathanael Oommen" },
+        { email: "rob_kellington@yahoo.com",       note: "Rob (test account)" },
+        { email: "rob.kellington@gmail.com",       note: "Rob (admin account)" },
+      ];
+
+      const log: string[] = [];
+      let inserted = 0, skipped = 0;
+
+      for (const inv of INVITES) {
+        const lc = inv.email.toLowerCase();
+        const [existing] = await db.select().from(leagueMembers)
+          .where(sql`lower(approved_email) = ${lc}`);
+        if (existing) {
+          log.push(`SKIP  ${inv.note} <${lc}> (${existing.status})`);
+          skipped++;
+          continue;
+        }
+        await db.insert(leagueMembers).values({
+          approvedEmail: lc,
+          role: "player",
+          status: "invited",
+        });
+        log.push(`OK    ${inv.note} <${lc}>`);
+        inserted++;
+      }
+
+      res.json({ ok: true, inserted, skipped, log });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   app.get("/api/nfl-teams", isAuthenticated, async (_req, res) => {
     try {
       const teams = await db.select().from(nflTeams).where(eq(nflTeams.isActive, true)).orderBy(asc(nflTeams.displayOrder));
