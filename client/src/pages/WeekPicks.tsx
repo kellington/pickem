@@ -337,6 +337,12 @@ export default function WeekPicks() {
         Assign each confidence value (1–{totalGames}) once. Higher = more confident. Picks save automatically.
       </p>
 
+      {pickedCount === totalGames && (
+        <p className="text-center text-sm text-green-600 font-medium mb-5">
+          ✓ All picks submitted — good luck!
+        </p>
+      )}
+
       {pickableCount > 0 && (
         <div className="flex flex-wrap gap-2 mb-5 items-center">
           <button
