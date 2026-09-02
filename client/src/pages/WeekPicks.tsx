@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { useState, useEffect, useRef } from "react";
+import { Dog } from "lucide-react";
 
 async function fetchWeekData(weekId: string) {
   const res = await fetch(`/api/weeks/${weekId}/games`, { credentials: "include" });
@@ -197,6 +198,45 @@ export default function WeekPicks() {
     toSave.forEach(({ gameId, teamId, confidence }) => triggerSave(gameId, teamId, confidence));
   };
 
+  const handleUpsets = () => {
+    const gameList = data?.games || [];
+    const total = gameList.length;
+    const unpicked = getUnpickedOpenGames(draftPicks, gameList);
+    const available = getAvailableConfidence(draftPicks, total);
+
+    const gamesWithUnderdog = unpicked.map((g: any) => {
+      const spread = g.gameOdds?.spread ?? null;
+      let underdogTeamId: string;
+      let absSpread: number;
+      if (spread === null) {
+        underdogTeamId = Math.random() < 0.5 ? g.homeTeamId : g.awayTeamId;
+        absSpread = 0;
+      } else if (spread <= 0) {
+        underdogTeamId = g.awayTeamId;
+        absSpread = Math.abs(spread);
+      } else {
+        underdogTeamId = g.homeTeamId;
+        absSpread = spread;
+      }
+      return { game: g, underdogTeamId, absSpread };
+    });
+
+    gamesWithUnderdog.sort((a, b) => b.absSpread - a.absSpread);
+    const sortedConf = [...available].sort((a, b) => b - a);
+
+    const newPicks = { ...draftPicks };
+    const toSave: Array<{ gameId: string; teamId: string; confidence: number }> = [];
+    gamesWithUnderdog.forEach((item, i) => {
+      const confidence = sortedConf[i];
+      if (confidence) {
+        newPicks[item.game.id] = { teamId: item.underdogTeamId, confidence };
+        toSave.push({ gameId: item.game.id, teamId: item.underdogTeamId, confidence });
+      }
+    });
+    setDraftPicks(newPicks);
+    toSave.forEach(({ gameId, teamId, confidence }) => triggerSave(gameId, teamId, confidence));
+  };
+
   const handleRandom = () => {
     const gameList = data?.games || [];
     const total = gameList.length;
@@ -305,6 +345,14 @@ export default function WeekPicks() {
             title="Auto-pick the spread favorite in each game, highest confidence to biggest favorite"
           >
             ⭐ Pick Favorites
+          </button>
+          <button
+            onClick={handleUpsets}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium hover:bg-rose-100 transition-colors"
+            title="Auto-pick the biggest underdogs first, highest confidence to biggest upset"
+          >
+            <Dog size={16} aria-hidden="true" />
+            Pick Upsets
           </button>
           <button
             onClick={handleRandom}
