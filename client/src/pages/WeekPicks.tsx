@@ -313,6 +313,18 @@ export default function WeekPicks() {
 
   const totalGames = games.length;
 
+  const teamOdds = games.flatMap((game: any) => {
+    const spread = game.gameOdds?.spread;
+    if (typeof spread !== "number") return [];
+    return [
+      { teamId: game.awayTeamId, spread: -spread },
+      { teamId: game.homeTeamId, spread },
+    ];
+  }).sort((a, b) => a.spread - b.spread);
+
+  const bestOddsTeamIds = new Set(teamOdds.slice(0, 3).map(({ teamId }) => teamId));
+  const worstOddsTeamIds = new Set(teamOdds.slice(-3).map(({ teamId }) => teamId));
+
   const formatTime = (utc: string | null) => {
     if (!utc) return "TBD";
     return new Date(utc).toLocaleString("en-CA", {
@@ -336,6 +348,18 @@ export default function WeekPicks() {
       <p className="text-slate-500 text-sm mb-4">
         Assign each confidence value (1–{totalGames}) once. Higher = more confident. Picks save automatically.
       </p>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 mb-4">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm border-2 border-green-500" aria-hidden="true" />
+          Top 3 odds
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm border-2 border-red-500" aria-hidden="true" />
+          Bottom 3 odds
+        </span>
+        <span className="text-slate-400">Based on point spread</span>
+      </div>
 
       {pickedCount === totalGames && (
         <p className="text-center text-sm text-green-600 font-medium mb-5">
@@ -452,6 +476,13 @@ export default function WeekPicks() {
                   selected={draft?.teamId === game.awayTeamId}
                   locked={locked}
                   isWinner={game.gameResult?.status === "final" && game.gameResult?.winningTeamId === game.awayTeamId}
+                  oddsHighlight={
+                    bestOddsTeamIds.has(game.awayTeamId)
+                      ? "best"
+                      : worstOddsTeamIds.has(game.awayTeamId)
+                      ? "worst"
+                      : null
+                  }
                   onClick={() => !locked && handleTeamClick(game.id, game.awayTeamId)}
                 />
                 <span className="text-slate-400 font-bold text-sm shrink-0">@</span>
@@ -463,6 +494,13 @@ export default function WeekPicks() {
                   selected={draft?.teamId === game.homeTeamId}
                   locked={locked}
                   isWinner={game.gameResult?.status === "final" && game.gameResult?.winningTeamId === game.homeTeamId}
+                  oddsHighlight={
+                    bestOddsTeamIds.has(game.homeTeamId)
+                      ? "best"
+                      : worstOddsTeamIds.has(game.homeTeamId)
+                      ? "worst"
+                      : null
+                  }
                   onClick={() => !locked && handleTeamClick(game.id, game.homeTeamId)}
                 />
 
@@ -530,7 +568,7 @@ export default function WeekPicks() {
   );
 }
 
-function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isWinner, onClick }: {
+function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isWinner, oddsHighlight, onClick }: {
   team: any;
   spread: number | null;
   prevSpread: number | null;
@@ -538,13 +576,20 @@ function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isW
   selected: boolean;
   locked: boolean;
   isWinner: boolean;
+  oddsHighlight: "best" | "worst" | null;
   onClick: () => void;
 }) {
+  const oddsRing = oddsHighlight === "best"
+    ? "ring-2 ring-green-500 ring-offset-1"
+    : oddsHighlight === "worst"
+    ? "ring-2 ring-red-500 ring-offset-1"
+    : "";
+
   return (
     <button
       onClick={onClick}
       disabled={locked}
-      className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg border-2 transition-colors text-sm font-medium disabled:cursor-default ${
+      className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg border-2 transition-colors text-sm font-medium disabled:cursor-default ${oddsRing} ${
         selected
           ? "border-blue-500 bg-blue-50 text-blue-800"
           : locked
