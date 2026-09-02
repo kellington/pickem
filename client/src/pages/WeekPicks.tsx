@@ -24,7 +24,7 @@ function SpreadMovement({ prev, curr }: { prev: number | null; curr: number | nu
   );
 }
 
-type DraftPick = { teamId: string; confidence: number };
+type DraftPick = { teamId: string; confidence: number | null };
 
 export default function WeekPicks() {
   const { weekId } = useParams<{ weekId: string }>();
@@ -62,7 +62,7 @@ export default function WeekPicks() {
   }, [data]);
 
   const savePick = useMutation({
-    mutationFn: async ({ gameId, selectedTeamId, confidenceValue }: { gameId: string; selectedTeamId: string; confidenceValue: number }) => {
+    mutationFn: async ({ gameId, selectedTeamId, confidenceValue }: { gameId: string; selectedTeamId: string; confidenceValue: number | null }) => {
       const res = await fetch("/api/picks", {
         method: "POST",
         credentials: "include",
@@ -90,7 +90,7 @@ export default function WeekPicks() {
 
   const handleTeamClick = (gameId: string, teamId: string) => {
     setDraftPicks((prev) => {
-      const updated = { ...prev, [gameId]: { teamId, confidence: prev[gameId]?.confidence || 0 } };
+      const updated = { ...prev, [gameId]: { teamId, confidence: prev[gameId]?.confidence ?? null } };
       const confidence = updated[gameId].confidence;
       if (confidence) {
         triggerSave(gameId, teamId, confidence);
@@ -99,18 +99,44 @@ export default function WeekPicks() {
     });
   };
 
-  const handleConfidenceChange = (gameId: string, confidence: number) => {
-    setDraftPicks((prev) => {
-      const teamId = prev[gameId]?.teamId || "";
-      const updated = { ...prev, [gameId]: { teamId, confidence } };
-      if (teamId) {
-        triggerSave(gameId, teamId, confidence);
+  const handleConfidenceChange = (gameId: string, confidence: number | null) => {
+    const currentPick = draftPicks[gameId];
+    const conflictingEntry = confidence === null
+      ? undefined
+      : Object.entries(draftPicks).find(
+          ([otherGameId, pick]) => otherGameId !== gameId && pick.confidence === confidence
+        );
+
+    if (conflictingEntry) {
+      const [conflictingGameId] = conflictingEntry;
+      const conflictingGame = data?.games?.find((game: any) => game.id === conflictingGameId);
+      if (conflictingGame && isGameLocked(conflictingGame)) {
+        setErrorGames((errors) => ({
+          ...errors,
+          [gameId]: "That confidence point belongs to a locked game",
+        }));
+        return;
       }
-      return updated;
-    });
+    }
+
+    const updated = { ...draftPicks };
+    if (conflictingEntry) {
+      const [conflictingGameId, conflictingPick] = conflictingEntry;
+      updated[conflictingGameId] = { ...conflictingPick, confidence: null };
+    }
+
+    updated[gameId] = {
+      teamId: currentPick?.teamId || "",
+      confidence,
+    };
+    setDraftPicks(updated);
+
+    if (currentPick?.teamId) {
+      triggerSave(gameId, currentPick.teamId, confidence);
+    }
   };
 
-  const triggerSave = (gameId: string, selectedTeamId: string, confidenceValue: number) => {
+  const triggerSave = (gameId: string, selectedTeamId: string, confidenceValue: number | null) => {
     setSavingGames((s) => new Set([...s, gameId]));
     savePick.mutate({ gameId, selectedTeamId, confidenceValue });
   };
@@ -391,8 +417,8 @@ export default function WeekPicks() {
                     disabled={locked}
                     value={draft?.confidence || ""}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (!isNaN(val)) handleConfidenceChange(game.id, val);
+                      const value = e.target.value;
+                      handleConfidenceChange(game.id, value === "" ? null : parseInt(value, 10));
                     }}
                     className="border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 bg-white"
                   >
@@ -401,7 +427,13 @@ export default function WeekPicks() {
                       <option
                         key={n}
                         value={n}
-                        disabled={usedConfidence.has(n) && draft?.confidence !== n}
+                        className={
+                          draft?.confidence === n
+                            ? "font-semibold text-blue-700"
+                            : usedConfidence.has(n)
+                            ? "font-normal text-slate-400"
+                            : "font-bold text-slate-800"
+                        }
                       >
                         {n}
                       </option>

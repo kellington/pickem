@@ -239,31 +239,69 @@ export function registerRoutes(app: Express) {
           .returning();
       }
 
+      // A null confidence releases this game's saved pick so its team remains
+      // available in the client draft until the player assigns a new value.
+      if (confidenceValue === null) {
+        if (isGameLocked(game)) return res.status(400).json({ message: "Picks are locked for this game" });
+
+        const [existingPick] = await db.select().from(picks)
+          .where(and(eq(picks.seasonMemberId, sm.id), eq(picks.gameId, gameId)));
+        if (existingPick) {
+          await db.delete(picks).where(eq(picks.id, existingPick.id));
+        }
+        return res.json({ ok: true, deleted: !!existingPick });
+      }
+
       const weekGamesList = await db.select().from(games).where(eq(games.weekId, game.weekId));
       const existingPicks = await db.select().from(picks)
         .where(and(eq(picks.seasonMemberId, sm.id), eq(picks.weekId, game.weekId)));
 
-      const error = validatePick({ game, selectedTeamId, confidenceValue, weekGames: weekGamesList, existingPicks });
+      const conflictingPick = existingPicks.find(
+        (pick) => pick.confidenceValue === confidenceValue && pick.gameId !== game.id
+      );
+      if (conflictingPick) {
+        const conflictingGame = weekGamesList.find((weekGame) => weekGame.id === conflictingPick.gameId);
+        if (!conflictingGame || isGameLocked(conflictingGame)) {
+          return res.status(400).json({ message: "That confidence point belongs to a locked game" });
+        }
+      }
+
+      const picksAfterTransfer = conflictingPick
+        ? existingPicks.filter((pick) => pick.id !== conflictingPick.id)
+        : existingPicks;
+      const error = validatePick({
+        game,
+        selectedTeamId,
+        confidenceValue,
+        weekGames: weekGamesList,
+        existingPicks: picksAfterTransfer,
+      });
       if (error) return res.status(400).json({ message: error });
 
       const [existingPick] = await db.select().from(picks)
         .where(and(eq(picks.seasonMemberId, sm.id), eq(picks.gameId, gameId)));
 
-      if (existingPick) {
-        await db.update(picks)
-          .set({ selectedTeamId, confidenceValue, updatedAt: new Date() })
-          .where(eq(picks.id, existingPick.id));
-      } else {
-        await db.insert(picks).values({
-          seasonMemberId: sm.id,
-          weekId: game.weekId,
-          gameId,
-          selectedTeamId,
-          confidenceValue,
-        });
-      }
+      await db.transaction(async (tx) => {
+        if (conflictingPick) {
+          await tx.delete(picks).where(eq(picks.id, conflictingPick.id));
+        }
 
-      res.json({ ok: true });
+        if (existingPick) {
+          await tx.update(picks)
+            .set({ selectedTeamId, confidenceValue, updatedAt: new Date() })
+            .where(eq(picks.id, existingPick.id));
+        } else {
+          await tx.insert(picks).values({
+            seasonMemberId: sm.id,
+            weekId: game.weekId,
+            gameId,
+            selectedTeamId,
+            confidenceValue,
+          });
+        }
+      });
+
+      res.json({ ok: true, releasedGameId: conflictingPick?.gameId ?? null });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
