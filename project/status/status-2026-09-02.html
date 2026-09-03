@@ -50,7 +50,9 @@
   .focus { border-left:6px solid var(--amber); background:#fffbeb; } .focus h2 { color:var(--amber); } .focus p { font-size:15px; }
   .communication { border-left:4px solid var(--blue); } .communication h2 { color:var(--blue); } .message { padding:12px 0; border-bottom:1px solid #f1f5f9; } .message:last-child { border-bottom:none; } .message-head { display:flex; gap:10px; align-items:baseline; margin-bottom:5px; } .message-date { font-size:11px; font-weight:700; background:#dbeafe; color:var(--blue); border-radius:999px; padding:2px 8px; white-space:nowrap; } .message ul { padding-left:20px; color:#334155; }
   .action { background:#fffbeb; border-left:4px solid var(--amber); border-radius:4px; padding:5px 8px; margin-top:7px; color:#92400e; font-size:12px; }
+  .resolved { background:#f0fdf4; border:1px solid #bbf7d0; border-left:4px solid var(--green); border-radius:6px; padding:9px 12px; margin-bottom:12px; color:#166534; font-size:13px; }
   .ideas { background:#f5f3ff; border-color:#ddd6fe; } .ideas h2 { color:var(--purple); } .idea-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .idea { border:1px solid #ddd6fe; background:#fff; border-radius:9px; padding:12px; } .idea b { font-size:13px; } .idea p { font-size:12px; color:#475569; margin:3px 0 7px; } .tag { display:inline-block; font-size:10px; font-weight:700; border-radius:999px; padding:2px 7px; background:#ede9fe; color:var(--purple); margin-right:4px; }
+  .ideas-subhead { font-size:12px; text-transform:uppercase; letter-spacing:.06em; margin:16px 0 9px; } .ideas-subhead:first-of-type { margin-top:0; } .ideas-subhead.outstanding { color:#92400e; } .ideas-subhead.done { color:var(--green); }
   .stack td:first-child { font-weight:700; white-space:nowrap; color:var(--muted); width:130px; } code { background:#f1f5f9; border-radius:4px; padding:1px 5px; font-size:12px; }
   footer { text-align:center; color:var(--muted); font-size:12px; padding:10px 0 30px; }
   @media (max-width:640px) { body { padding:12px; } .header-right { margin-left:0; text-align:left; } .flow { flex-direction:column; align-items:stretch; } .flow-node { flex-direction:row; gap:10px; align-items:center; } .flow-node .fl-label { margin-top:0; } .flow-arrow { display:none; } .idea-grid { grid-template-columns:1fr; } table { display:block; overflow-x:auto; } }
@@ -190,6 +192,7 @@
 <!-- 8. Open Risks -->
 <div class="card">
   <h2>Open Risks</h2>
+  <div class="resolved"><b>Resolved since the previous report:</b> invite-only membership is enforced, and the Clear All lock, missing-cutoff fallback, confidence-range, and phased dropped-week implementation gaps are fixed in the current code. Their remaining concern is regression/end-to-end verification, not missing functionality.</div>
   <table>
     <tr><th>Risk</th><th>Severity</th><th>Impact</th><th>Next move</th></tr>
     <tr><td>Core Week 1 flows remain unverified with a second user and real scoring data</td><td><span class="sev sev-high">High</span></td><td>Failure could appear after the season has started.</td><td>Run the complete rehearsal immediately, before September 9.</td></tr>
@@ -236,20 +239,37 @@
   <p style="margin-top:12px;color:var(--muted);font-size:12px;">Theme: testers respond positively to the concept, but onboarding clarity and “what have I submitted?” confidence remain the most important usability proof points.</p>
 </div>
 
-<!-- 11. Feature Ideas -->
+<!-- 11. Ideas -->
 <div class="card ideas">
-  <h2>Feature Ideas</h2>
+  <h2>Ideas</h2>
+  <p style="font-size:13px;color:#475569;margin-bottom:4px;">Complete idea inventory from the ideas list, tester feedback, and the September diary. Items are separated by whether the current app already delivers them.</p>
+  <div class="ideas-subhead outstanding">Outstanding</div>
   <div class="idea-grid">
     <div class="idea"><b>Mini-season tournaments</b><p>Run themed weekend competitions so players can recover interest after falling behind.</p><span class="tag">communication</span><span class="tag">Engagement</span></div>
     <div class="idea"><b>Head-to-head challenges</b><p>Let players challenge one person for a bonus, with risk for the challenger.</p><span class="tag">ideas.md</span><span class="tag">Engagement</span></div>
-    <div class="idea"><b>Catch-up bonus points</b><p>Add controlled bonus mechanics that keep the season competitive without changing the base picks.</p><span class="tag">ideas.md</span><span class="tag">Engagement</span></div>
+    <div class="idea"><b>Catch-up bonus points</b><p>Add bonus mechanics that give players a way to recover as the season progresses.</p><span class="tag">ideas.md</span><span class="tag">Engagement</span></div>
     <div class="idea"><b>Double a confidence level</b><p>Allow each confidence level to be doubled once during the season, with meaningful downside.</p><span class="tag">ideas.md</span><span class="tag">Rules</span></div>
     <div class="idea"><b>Stickers and badges</b><p>Reward weekly behaviors such as picking the most visitor teams.</p><span class="tag">ideas.md</span><span class="tag">Engagement</span></div>
     <div class="idea"><b>Playoff winner bracket</b><p>Send mini-tournament winners or top finishers into a separate playoff-pick bracket.</p><span class="tag">communication</span><span class="tag">Rules</span></div>
     <div class="idea"><b>International-game bonus</b><p>Make international games a special event with a carefully bounded bonus.</p><span class="tag">communication</span><span class="tag">Rules</span></div>
-    <div class="idea"><b>Odds-driven auto-pick</b><p>Use Vegas odds to assign favorites and confidence values automatically; this is now shipped.</p><span class="tag">communication</span><span class="tag">UX</span></div>
-    <div class="idea"><b>Random or home-team pick</b><p>Offer a low-effort fallback for players who want to submit without researching every matchup; Random is shipped.</p><span class="tag">ideas.md</span><span class="tag">UX</span></div>
-    <div class="idea"><b>Alternative matchup games</b><p>Explore picking losers, lowest-scoring teams, or player/stat outcomes as optional themed games.</p><span class="tag">communication</span><span class="tag">Rules</span></div>
+    <div class="idea"><b>Alternative matchup games</b><p>Explore picking losers, low-scoring teams, or player/stat outcomes as optional themed games.</p><span class="tag">communication</span><span class="tag">Rules</span></div>
+    <div class="idea"><b>Bonus-week scoring</b><p>Explore a special week or game worth extra points, such as a 32-point bonus or high-score multiplier.</p><span class="tag">communication</span><span class="tag">Rules</span></div>
+    <div class="idea"><b>Uploaded team images</b><p>Let players add a team image while keeping initials as the fallback.</p><span class="tag">PROJECT.md</span><span class="tag">UX</span></div>
+    <div class="idea"><b>Friendlier admin controls</b><p>Add an admin UI when database-level season, roster, result, and correction work becomes cumbersome.</p><span class="tag">PLAN.md</span><span class="tag">UX</span></div>
+  </div>
+  <div class="ideas-subhead done">Done</div>
+  <div class="idea-grid">
+    <div class="idea"><b>Ideas submission popup</b><p>Players can submit ideas and browse the shared idea list from the Nav toolbar.</p><span class="tag">TASKS.md</span><span class="tag">UX</span></div>
+    <div class="idea"><b>Regular confidence picks</b><p>Winner-only picks with each confidence value used once per week.</p><span class="tag">ideas.md</span><span class="tag">Rules</span></div>
+    <div class="idea"><b>Dropped-week standings</b><p>Standings use phased dropped weeks, beginning after five scored weeks.</p><span class="tag">ideas.md</span><span class="tag">Rules</span></div>
+    <div class="idea"><b>Odds and spread display</b><p>Show display-only Vegas spreads and moneylines to help guide picks.</p><span class="tag">communication</span><span class="tag">Data</span></div>
+    <div class="idea"><b>Pick Favorites</b><p>Assign spread favorites with the highest confidence values going to the biggest favorites.</p><span class="tag">communication</span><span class="tag">UX</span></div>
+    <div class="idea"><b>Pick Upsets</b><p>Assign underdogs and confidence values for a quick upset-oriented strategy.</p><span class="tag">diary</span><span class="tag">UX</span></div>
+    <div class="idea"><b>Random auto-pick</b><p>Pick winners and distribute remaining confidence values for a quick fallback.</p><span class="tag">ideas.md</span><span class="tag">UX</span></div>
+    <div class="idea"><b>Confidence transfers</b><p>Move a used confidence value to another game and release the old game back to “—”.</p><span class="tag">diary</span><span class="tag">UX</span></div>
+    <div class="idea"><b>Pick completion indicator</b><p>Show “All picks submitted” at both the top and bottom of My Picks.</p><span class="tag">communication</span><span class="tag">UX</span></div>
+    <div class="idea"><b>Odds strength outlines</b><p>Highlight the three strongest and three weakest weekly teams with green/red outlines.</p><span class="tag">diary</span><span class="tag">Data</span></div>
+    <div class="idea"><b>Team pick statistics</b><p>Show how many players picked each team and the average confidence, refreshing periodically.</p><span class="tag">diary</span><span class="tag">Data</span></div>
   </div>
 </div>
 
