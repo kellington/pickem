@@ -191,9 +191,9 @@ export default function Home() {
   const isAdmin = me?.member?.role === "admin";
 
   const news = [
-    { date: "July 11", text: "Added Vegas odds feature — spreads & moneylines now show on every game.", done: true },
-    { date: "July 11", text: "Auto-Pick added — use Favorites (picks spread favorites by confidence) or Random on the My Picks screen. Plus a Clear All button to wipe and restart your picks.", done: true },
-    { date: "Up next", text: "Tracking weekly progress and standings.", done: false },
+    { date: "Sep 2", text: "A round of updates based on ideas submitted.", done: true },
+    { date: "Sep 2", text: "Confirmation email of users / emails.", done: true },
+    { date: "Up next", text: "NFL Week 1 of the 2026 season starts on Wednesday, September 9, 2026.", done: false },
   ];
 
   return (
