@@ -4,6 +4,6 @@ tagline: Private NFL Pick'em confidence-point league web app for a friend group 
 group: Personal
 profile: Personal Project
 priority: 7
-status: Live at geeks-pickem.replit.app with full 2026 schedule; code review (2026-07-15) found 6 high-priority fixes (invite-only gate, lock rules, dropped-weeks bug) — 31 days to the hard mid-August launch, core flows still unverified and only 1 of ~15 friends signed in.
-generated: 2026-07-15
+status: Live with the full 2026 schedule and recent pick-flow improvements; Week 1 starts September 9, but end-to-end verification, invite cleanup, invite-only membership, and scoring/standings tests remain urgent.
+generated: 2026-09-02
 ---
