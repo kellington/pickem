@@ -260,7 +260,17 @@ export function registerRoutes(app: Express) {
         // Auto-enroll active members who completed profile setup before season was active
         [sm] = await db.insert(seasonMembers)
           .values({ seasonId: game.seasonId, leagueMemberId: member.id, isActive: true, displayOrder: 0 })
+          .onConflictDoNothing({
+            target: [seasonMembers.seasonId, seasonMembers.leagueMemberId],
+          })
           .returning();
+        if (!sm) {
+          [sm] = await db.select().from(seasonMembers)
+            .where(and(
+              eq(seasonMembers.leagueMemberId, member.id),
+              eq(seasonMembers.seasonId, game.seasonId),
+            ));
+        }
       }
 
       // A null confidence releases this game's saved pick so its team remains

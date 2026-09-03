@@ -25,6 +25,12 @@ function SpreadMovement({ prev, curr }: { prev: number | null; curr: number | nu
   );
 }
 
+function isGameLocked(game: any): boolean {
+  if (["final", "in_progress"].includes(game.gameResult?.status)) return true;
+  const cutoff = game.pickCutoffAtUtc ?? game.kickoffAtUtc;
+  return !cutoff || new Date(cutoff) <= new Date();
+}
+
 type DraftPick = { teamId: string; confidence: number | null };
 
 export default function WeekPicks() {
