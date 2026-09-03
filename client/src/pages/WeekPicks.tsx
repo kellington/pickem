@@ -43,6 +43,7 @@ export default function WeekPicks() {
     queryKey: ["/api/weeks", weekId, "games"],
     queryFn: () => fetchWeekData(weekId!),
     enabled: !!weekId,
+    refetchInterval: 30000,
   });
 
   useEffect(() => {
@@ -476,6 +477,7 @@ export default function WeekPicks() {
                   selected={draft?.teamId === game.awayTeamId}
                   locked={locked}
                   isWinner={game.gameResult?.status === "final" && game.gameResult?.winningTeamId === game.awayTeamId}
+                  pickStats={data?.teamPickStats?.[game.awayTeamId]}
                   oddsHighlight={
                     bestOddsTeamIds.has(game.awayTeamId)
                       ? "best"
@@ -494,6 +496,7 @@ export default function WeekPicks() {
                   selected={draft?.teamId === game.homeTeamId}
                   locked={locked}
                   isWinner={game.gameResult?.status === "final" && game.gameResult?.winningTeamId === game.homeTeamId}
+                  pickStats={data?.teamPickStats?.[game.homeTeamId]}
                   oddsHighlight={
                     bestOddsTeamIds.has(game.homeTeamId)
                       ? "best"
@@ -568,7 +571,7 @@ export default function WeekPicks() {
   );
 }
 
-function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isWinner, oddsHighlight, onClick }: {
+function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isWinner, oddsHighlight, pickStats, onClick }: {
   team: any;
   spread: number | null;
   prevSpread: number | null;
@@ -577,6 +580,7 @@ function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isW
   locked: boolean;
   isWinner: boolean;
   oddsHighlight: "best" | "worst" | null;
+  pickStats?: { pickCount: number; averageConfidence: number };
   onClick: () => void;
 }) {
   const oddsRing = oddsHighlight === "best"
@@ -612,6 +616,20 @@ function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isW
           ML {formatMl(moneyline)}
         </span>
       )}
+      <div className={`w-full mt-1.5 pt-1.5 border-t ${selected ? "border-blue-200" : "border-slate-100"}`}>
+        <div className="grid grid-cols-2 gap-2 text-center text-[10px] leading-tight">
+          <div>
+            <span className="block font-bold text-slate-700">{pickStats?.pickCount ?? 0}</span>
+            <span className="text-slate-400">players</span>
+          </div>
+          <div>
+            <span className="block font-bold text-slate-700">
+              {(pickStats?.averageConfidence ?? 0).toFixed(1)}
+            </span>
+            <span className="text-slate-400">avg conf</span>
+          </div>
+        </div>
+      </div>
     </button>
   );
 }

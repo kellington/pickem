@@ -206,7 +206,31 @@ export function registerRoutes(app: Express) {
         }
       }
 
-      res.json({ games: weekGames, myPicks });
+      const weekPicks = await db.select({
+        gameId: picks.gameId,
+        selectedTeamId: picks.selectedTeamId,
+        confidenceValue: picks.confidenceValue,
+      }).from(picks).where(eq(picks.weekId, weekId));
+
+      const statsByTeam: Record<string, { pickCount: number; confidenceTotal: number }> = {};
+      for (const pick of weekPicks) {
+        const current = statsByTeam[pick.selectedTeamId] ?? { pickCount: 0, confidenceTotal: 0 };
+        current.pickCount += 1;
+        current.confidenceTotal += pick.confidenceValue;
+        statsByTeam[pick.selectedTeamId] = current;
+      }
+
+      const teamPickStats = Object.fromEntries(
+        Object.entries(statsByTeam).map(([teamId, stats]) => [
+          teamId,
+          {
+            pickCount: stats.pickCount,
+            averageConfidence: Number((stats.confidenceTotal / stats.pickCount).toFixed(1)),
+          },
+        ])
+      );
+
+      res.json({ games: weekGames, myPicks, teamPickStats });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
