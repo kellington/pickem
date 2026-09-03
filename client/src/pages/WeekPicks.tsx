@@ -109,6 +109,14 @@ export default function WeekPicks() {
 
   const handleConfidenceChange = (gameId: string, confidence: number | null) => {
     const currentPick = draftPicks[gameId];
+    if (confidence !== null && !currentPick?.teamId) {
+      setErrorGames((errors) => ({
+        ...errors,
+        [gameId]: "Choose a team before assigning confidence",
+      }));
+      return;
+    }
+
     const conflictingEntry = confidence === null
       ? undefined
       : Object.entries(draftPicks).find(
@@ -514,32 +522,14 @@ export default function WeekPicks() {
                 />
 
                 <div className="ml-auto shrink-0 flex flex-col items-end gap-1">
-                  <select
+                  <ConfidenceSelect
                     disabled={locked}
-                    value={draft?.confidence || ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      handleConfidenceChange(game.id, value === "" ? null : parseInt(value, 10));
-                    }}
-                    className="border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 bg-white"
-                  >
-                    <option value="">—</option>
-                    {Array.from({ length: totalGames }, (_, i) => i + 1).map((n) => (
-                      <option
-                        key={n}
-                        value={n}
-                        className={
-                          draft?.confidence === n
-                            ? "font-semibold text-blue-700"
-                            : usedConfidence.has(n)
-                            ? "font-normal text-slate-400"
-                            : "font-bold text-slate-800"
-                        }
-                      >
-                        {n}
-                      </option>
-                    ))}
-                  </select>
+                    value={draft?.confidence ?? null}
+                    totalGames={totalGames}
+                    usedConfidence={usedConfidence}
+                    hasTeam={Boolean(draft?.teamId)}
+                    onChange={(value) => handleConfidenceChange(game.id, value)}
+                  />
 
                   <div className="h-3.5 flex items-center">
                     {isSaving && (
@@ -637,5 +627,111 @@ function TeamButton({ team, spread, prevSpread, moneyline, selected, locked, isW
         </div>
       </div>
     </button>
+  );
+}
+
+function ConfidenceSelect({
+  value,
+  totalGames,
+  usedConfidence,
+  hasTeam,
+  disabled,
+  onChange,
+}: {
+  value: number | null;
+  totalGames: number;
+  usedConfidence: Set<number>;
+  hasTeam: boolean;
+  disabled: boolean;
+  onChange: (value: number | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const incomplete = hasTeam && value === null;
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [open]);
+
+  const choose = (nextValue: number | null) => {
+    setOpen(false);
+    onChange(nextValue);
+  };
+
+  return (
+    <div ref={menuRef} className="relative w-16">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={incomplete ? "Choose confidence — required" : "Choose confidence"}
+        onClick={() => setOpen((isOpen) => !isOpen)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+        }}
+        className={`w-full flex items-center justify-between gap-1 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 ${
+          incomplete
+            ? "border border-amber-400 bg-amber-50 text-amber-800 ring-1 ring-amber-200"
+            : "border border-slate-300 bg-white text-slate-800"
+        }`}
+      >
+        <span className={value === null ? "text-slate-400" : "font-bold"}>{value ?? "—"}</span>
+        <span className="text-[10px] text-slate-400" aria-hidden="true">▾</span>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-label="Confidence points"
+          className="absolute right-0 z-20 mt-1 max-h-64 w-28 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
+        >
+          <button
+            type="button"
+            role="option"
+            aria-selected={value === null}
+            onClick={() => choose(null)}
+            className={`w-full rounded px-2 py-1.5 text-left text-sm ${
+              value === null
+                ? "bg-blue-50 font-bold text-blue-700"
+                : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            —
+          </button>
+          {Array.from({ length: totalGames }, (_, i) => i + 1).map((n) => {
+            const selected = value === n;
+            const used = usedConfidence.has(n) && !selected;
+            return (
+              <button
+                key={n}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                aria-label={used ? `${n}, used — selecting this transfers it` : `${n}, available`}
+                onClick={() => choose(n)}
+                className={`w-full rounded px-2 py-1.5 text-left text-sm ${
+                  selected
+                    ? "bg-blue-50 font-bold text-blue-700"
+                    : used
+                    ? "bg-slate-100 font-normal text-slate-400 hover:bg-slate-200"
+                    : "font-bold text-slate-900 hover:bg-blue-50"
+                }`}
+              >
+                <span className="flex items-center justify-between">
+                  <span>{n}</span>
+                  {used && <span className="text-[10px]">used</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
