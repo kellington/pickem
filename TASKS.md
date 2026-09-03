@@ -17,13 +17,12 @@ also land before the mid-August 2026 launch deadline (see PLAN.md).
 
 ## Next
 
-- [ ] Verify Group Picks visibility: picks hidden until each game's kickoff, then revealed correctly for all players.
-- [ ] Verify Standings: weekly rankings, season totals, dropped-week adjusted totals, and rank ordering.
+- [ ] Verify Group Picks visibility: confirm the implemented kickoff reveal with multiple players.
+- [ ] Verify Standings: confirm weekly rankings, season totals, phased dropped-week totals, and rank ordering.
 - [ ] Add unit tests for scoring logic, confidence-point validation, cutoff/lock behavior, and dropped-week calculation.
 - [ ] Validate Replit Deployment end-to-end: log in at geeks-pickem.replit.app, confirm picks and scoring work in production (not just dev).
 - [ ] Switch to invite-only membership: remove the auto-create branch in `POST /api/profile` (return a friendly "not invited" response), and add a seed script in `scripts/` that inserts invited `league_members` rows from the admin's email list (lowercase emails, case-insensitive match). See DECISIONS.md 2026-07-15 and review finding H1.
-- [ ] Implement phased dropped weeks: no drops until 5 weeks scored, then `min(droppedWeekCount, weeksScored − 4)`; route should reuse `computeStandings` in `server/domain.ts`. See DECISIONS.md 2026-07-15 and review finding H5.
-- [ ] Fix lock-rule gaps from code review: Clear All ignores pick cutoff (H2), games with null `pickCutoffAtUtc` never lock (H3), confidence range should be validated against total games, not still-open games (H4). See `project/reviews/2026-07-15_claude.md`.
+- [ ] Verify the implemented phased dropped weeks and lock rules: no drops until 5 weeks scored, kickoff fallback for missing cutoffs, Clear All respecting locks, and confidence range based on total games.
 
 ## Later
 

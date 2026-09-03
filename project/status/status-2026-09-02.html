@@ -74,9 +74,9 @@
 <!-- 2. Key metrics -->
 <div class="stats">
   <div class="stat"><div class="label">Milestone</div><div class="value" style="font-size:14px;">Basic Scaffold &amp; Week 1 Workflow</div></div>
-  <div class="stat"><div class="label">Milestone complete</div><div class="value v-amber">6 / 13</div><div class="sub">46% of PLAN.md definition of done; schedule note is stale</div></div>
+  <div class="stat"><div class="label">Milestone implemented</div><div class="value v-green">13 / 13</div><div class="sub">All Week 1 capabilities are built; verification is tracked separately</div></div>
   <div class="stat"><div class="label">Roadmap stage</div><div class="value v-sky" style="font-size:15px;">Stage 3 of 6</div><div class="sub">Pick Submission — verification</div></div>
-  <div class="stat"><div class="label">Known issue groups</div><div class="value v-red">8</div><div class="sub">STATE.md review and verification gaps</div></div>
+  <div class="stat"><div class="label">Known issue groups</div><div class="value v-red">5</div><div class="sub">Membership, tests, verification, roster, schedule ops</div></div>
   <div class="stat"><div class="label">"Now" tasks</div><div class="value v-amber">4</div><div class="sub">2 development · 2 league operations</div></div>
   <div class="stat"><div class="label">Week 1 starts</div><div class="value v-red" style="font-size:16px;">Sep 9, 2026</div><div class="sub">7 days from this report date</div></div>
 </div>
@@ -87,7 +87,7 @@
   <p>
     The app is live at <b>geeks-pickem.replit.app</b> with working Replit Auth, the full 2026 schedule (272 games), and the main pick, group-picks, scoring, and standings surfaces.
     The September work added odds guidance, Favorites/Upsets/Random helpers, completion messaging, transferable confidence points, and aggregate team-pick statistics; the confidence selector was refined again on September 2.
-    The uncomfortable truth is that the core Week 1 rehearsal is still not proven end-to-end with a second user, production results, and scoring, and the invite-only gate and automated tests remain unfinished.
+    The uncomfortable truth is that the core Week 1 rehearsal is still not proven end-to-end with a second user, production results, and scoring. The invite-only gate and automated tests remain unfinished, but the seven previously “incomplete” milestone capabilities are implemented in the current version.
     There are 10 active members and 16 invited rows, including 7 likely stale or duplicate invitations, while Week 1 starts September 9 — so the next move is verification and roster cleanup, not another feature.
   </p>
 </div>
@@ -95,24 +95,24 @@
 <!-- 4. Milestone Progress -->
 <div class="card">
   <h2>Milestone Progress — Definition of Done</h2>
-  <div class="bar"><div class="bar-fill" style="width:46%;"></div></div>
-  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">6 of 13 complete (46%)</div>
+  <div class="bar"><div class="bar-fill" style="width:100%;"></div></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">13 of 13 implemented (100%); verification and launch operations remain</div>
   <ul class="check">
     <li><span class="tick ok">✓</span> Stack, database, auth, hosting, and testing conventions chosen and documented</li>
     <li><span class="tick ok">✓</span> App runs locally/on Replit via documented commands</li>
     <li><span class="tick ok">✓</span> Replit-ready scaffold with DB connection, schema, and seed commands</li>
     <li><span class="tick ok">✓</span> Approved users can log in with Replit Auth</li>
     <li><span class="tick ok">✓</span> Players can set a team name with initials fallback</li>
-    <li><span class="tick ok">✓</span> NFL teams and the 2026 schedule bootstrapped into PostgreSQL <span class="note-amber">(PLAN.md still says “not yet loaded”; 272 games are seeded)</span></li>
-    <li><span class="tick no">✗</span> Players can pick winners for each Week 1 game <span class="note-amber">built, not verified as a complete rehearsal</span></li>
-    <li><span class="tick no">✗</span> Each confidence value used exactly once per week <span class="note-amber">transfer UI/server path built; needs second-user verification</span></li>
-    <li><span class="tick no">✗</span> Players can edit picks before each game's configured cutoff <span class="note-amber">lock-rule gaps remain in STATE.md</span></li>
-    <li><span class="tick no">✗</span> Picks hidden from others until each game starts <span class="note-amber">implemented, not verified end-to-end</span></li>
-    <li><span class="tick no">✗</span> Results can be entered after games complete <span class="note-amber">admin tools exist; real-data rehearsal remains</span></li>
-    <li><span class="tick no">✗</span> Batch scoring calculates weekly points and season totals <span class="note-amber">built, unverified; dropped-week issue remains</span></li>
-    <li><span class="tick no">✗</span> Players can view My Picks, Group Picks, and basic Standings <span class="note-amber">surfaces exist; full flow is not signed off</span></li>
+    <li><span class="tick ok">✓</span> NFL teams and the 2026 schedule bootstrapped into PostgreSQL <span class="note-amber">272 games seeded</span></li>
+    <li><span class="tick ok">✓</span> Players can pick winners for each Week 1 game <span class="note-amber">implemented; complete rehearsal pending</span></li>
+    <li><span class="tick ok">✓</span> Each confidence value used exactly once per week <span class="note-amber">implemented; transfer rehearsal pending</span></li>
+    <li><span class="tick ok">✓</span> Players can edit picks before each game's configured cutoff <span class="note-amber">implemented; lock verification pending</span></li>
+    <li><span class="tick ok">✓</span> Picks hidden from others until each game starts <span class="note-amber">implemented; visibility rehearsal pending</span></li>
+    <li><span class="tick ok">✓</span> Results can be entered after games complete <span class="note-amber">implemented; real-data rehearsal pending</span></li>
+    <li><span class="tick ok">✓</span> Batch scoring calculates weekly points and season totals <span class="note-amber">implemented; scoring rehearsal pending</span></li>
+    <li><span class="tick ok">✓</span> Players can view My Picks, Group Picks, and basic Standings <span class="note-amber">implemented; full flow sign-off pending</span></li>
   </ul>
-  <div class="drift">⚠ <b>Documentation drift:</b> PLAN.md and STATE.md predate the September feature work. The schedule and several player-facing features are ahead of those files, but the unverified-flow warnings are still real.</div>
+  <div class="drift">⚠ <b>Important distinction:</b> these items are implemented, not fully verified. The remaining work is evidence that the complete flow behaves correctly for multiple users and in production.</div>
 </div>
 
 <!-- 5. App Readiness -->
@@ -132,11 +132,11 @@
     <tr><td>Profile setup</td><td class="cell-mid">~</td><td>Works, but the membership path is still open to any Replit user until invite-only is implemented.</td></tr>
     <tr><td>Game schedule loaded</td><td class="cell-ok">✓</td><td>272 games across 18 weeks are seeded for the 2026 season.</td></tr>
     <tr><td>Pick submission (confidence pts)</td><td class="cell-mid">~</td><td>Built with transfer-safe confidence selection, Favorites/Upsets/Random, and team-pick stats; second-user rehearsal still needed.</td></tr>
-    <tr><td>Cutoff enforcement</td><td class="cell-mid">~</td><td>Per-game lock logic exists, but Clear All/null-cutoff/range gaps remain documented in STATE.md.</td></tr>
+    <tr><td>Cutoff enforcement</td><td class="cell-mid">~</td><td>Shared lock logic, kickoff fallback, Clear All protection, and total-game confidence range are implemented; end-to-end verification remains.</td></tr>
     <tr><td>Scoring batch</td><td class="cell-mid">~</td><td>Results tools and score-week endpoint exist; not verified against a complete real pick set.</td></tr>
     <tr><td>Group Picks reveal</td><td class="cell-mid">~</td><td>Per-game reveal at kickoff is implemented server-side; visibility needs rehearsal.</td></tr>
     <tr><td>Weekly standings</td><td class="cell-mid">~</td><td>Surface and calculation path exist; ranking correctness is not signed off.</td></tr>
-    <tr><td>Season standings (dropped weeks)</td><td class="cell-no">✗</td><td>Phased dropped-week rule was decided but the known H5 implementation gap remains.</td></tr>
+    <tr><td>Season standings (dropped weeks)</td><td class="cell-mid">~</td><td>Phased dropped-week calculation is implemented; it still needs verification across scored-week counts.</td></tr>
     <tr><td>Playoff phase</td><td class="cell-no">✗</td><td>Deferred to a later roadmap stage by design.</td></tr>
     <tr><td>Replit Deployment verified</td><td class="cell-mid">~</td><td>Live at geeks-pickem.replit.app; production pick/scoring rehearsal is outstanding.</td></tr>
     <tr><td>Friends onboarded</td><td class="cell-mid">~</td><td>10 active members are recorded; 16 invited rows remain, with likely duplicate cleanup needed.</td></tr>
@@ -155,8 +155,8 @@
     </ol></div>
     <div class="col"><h3>Next (sequential)</h3><ol>
       <li class="critical">Close the membership hole with invite-only profile setup and a clean invite seed path.</li>
-      <li class="critical">Fix and verify lock-rule gaps: Clear All, null cutoffs, and confidence range.</li>
-      <li>Implement phased dropped weeks and add domain tests.</li>
+      <li>Verify the implemented lock rules: Clear All, null cutoffs, and confidence range.</li>
+      <li>Verify phased dropped weeks and add domain tests.</li>
       <li>Verify Group Picks reveal, weekly standings, and season standings ordering.</li>
       <li>Repeat the full rehearsal against the published app.</li>
     </ol></div>
@@ -181,9 +181,9 @@
 <div class="card">
   <h2>Roadmap Stages</h2>
   <div class="stage"><div class="sdot sdot-done"></div><div><b>1 · Foundation</b> <span class="outcome">— App runs, auth works, database seeded</span></div></div>
-  <div class="stage"><div class="sdot sdot-done"></div><div><b>2 · Game Schedule</b> <span class="outcome">— Real games loaded; pick flow can be tested</span><span class="active-note">Done in reality: 272 games seeded, although PLAN.md still labels schedule loading pending.</span></div></div>
-  <div class="stage"><div class="sdot sdot-active"></div><div><b>3 · Pick Submission</b> <span class="outcome">— Friends can submit weekly picks with confidence points</span><span class="active-note">Active: recent UX and confidence-transfer work is built; Week 1 rehearsal and lock verification are the proof point.</span></div></div>
-  <div class="stage"><div class="sdot sdot-pending"></div><div><b>4 · Scoring and Standings</b> <span class="outcome">— Scores calculate correctly; league can track weekly rankings</span></div></div>
+  <div class="stage"><div class="sdot sdot-done"></div><div><b>2 · Game Schedule</b> <span class="outcome">— Real games loaded; pick flow can be tested</span><span class="active-note">Done: 272 games are seeded.</span></div></div>
+  <div class="stage"><div class="sdot sdot-active"></div><div><b>3 · Pick Submission</b> <span class="outcome">— Friends can submit weekly picks with confidence points</span><span class="active-note">Implemented: the remaining work is second-user and production verification.</span></div></div>
+  <div class="stage"><div class="sdot sdot-active"></div><div><b>4 · Scoring and Standings</b> <span class="outcome">— Scores calculate correctly; league can track weekly rankings</span><span class="active-note">Implemented: result entry, batch scoring, and phased standings need rehearsal and tests.</span></div></div>
   <div class="stage"><div class="sdot sdot-pending"></div><div><b>5 · Dropped Weeks and Playoffs</b> <span class="outcome">— Full regular season and playoff competition works</span></div></div>
   <div class="stage"><div class="sdot sdot-pending"></div><div><b>6 · League Features</b> <span class="outcome">— Team images, stickers, admin ergonomics — polish</span></div></div>
 </div>
@@ -197,8 +197,7 @@
     <tr><td>Membership is still wide open until the invite-only decision is implemented</td><td><span class="sev sev-high">High</span></td><td>Unapproved users can enter a private league.</td><td>Remove profile auto-create and seed the confirmed invite list.</td></tr>
     <tr><td>No automated tests for validation, scoring, locks, or standings</td><td><span class="sev sev-high">High</span></td><td>Recent fixes can regress silently during live play.</td><td>Create focused tests in server/tests before expanding scope.</td></tr>
     <tr><td>Roster contains 16 invited rows, including 7 likely stale or duplicate entries</td><td><span class="sev sev-high">High</span></td><td>Invite matching and onboarding can confuse active players.</td><td>Confirm Replit-account emails and remove/reconcile duplicates.</td></tr>
-    <tr><td>Dropped-week calculation has a known early-season standings gap</td><td><span class="sev sev-med">Medium</span></td><td>Season standings can look wrong before five weeks are scored.</td><td>Implement the phased formula and test 1–18 scored weeks.</td></tr>
-    <tr><td>Lock-rule gaps remain around Clear All, missing cutoffs, and confidence range</td><td><span class="sev sev-med">Medium</span></td><td>Players may edit after lock or receive confusing rejection errors.</td><td>Use one lock rule across delete, validate, and client UI; verify all games.</td></tr>
+    <tr><td>Implemented dropped-week and lock rules lack full regression coverage</td><td><span class="sev sev-med">Medium</span></td><td>Future changes could reintroduce standings or cutoff errors.</td><td>Verify edge cases and add domain tests.</td></tr>
     <tr><td>Replit Auth requires friends to use Replit-account identity details</td><td><span class="sev sev-med">Medium</span></td><td>Onboarding and email matching can fail even when a usual email is known.</td><td>Collect the exact Replit login email from each remaining friend.</td></tr>
     <tr><td>NFL can flex game times and the update path is not formalized</td><td><span class="sev sev-med">Medium</span></td><td>Stale kickoff times can produce wrong lock windows.</td><td>Document a safe schedule refresh that preserves picks and updates cutoffs.</td></tr>
     <tr><td>Production pick/scoring behavior has not been rehearsed end-to-end</td><td><span class="sev sev-low">Low</span></td><td>Dev and production differences could surface during Week 1.</td><td>Repeat the rehearsal at geeks-pickem.replit.app.</td></tr>
