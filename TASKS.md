@@ -6,7 +6,7 @@ If a single item needs more than one session, has hard out-of-scope boundaries, 
 
 Both workstreams are first-class: untagged items are app development; items tagged
 **League ops —** are the operational track (onboarding, season admin) that must
-also land before the mid-August 2026 launch deadline (see PLAN.md).
+also land before the 2026 season launch; Week 1 begins September 9 (see PLAN.md).
 
 ## Now
 
@@ -27,10 +27,9 @@ also land before the mid-August 2026 launch deadline (see PLAN.md).
 
 - [ ] Add optional uploaded team images with initials fallback (Replit App Storage).
 - [ ] Add sticker/badge-style achievements for weekly performance.
-- [ ] Add display-only odds/spread information if there is an easy, reliable source.
 - [ ] Add an admin UI if database-level operations become too cumbersome.
 - [ ] Build the post-regular-season playoff bracket phase.
-- [ ] Explore bonus mechanics from `project/ideas/ideas.md`: double-confidence, head-to-head challenges, auto-pick, international-game bonuses, and catch-up rewards.
+- [ ] Explore bonus mechanics from `project/ideas/ideas.md`: double-confidence, head-to-head challenges, international-game bonuses, and catch-up rewards.
 
 ## Done (recent)
 
@@ -57,5 +56,6 @@ also land before the mid-August 2026 launch deadline (see PLAN.md).
 - [x] Recorded decisions: invite-only membership (reverses auto-create) and phased dropped weeks from week 5 (DECISIONS.md 2026-07-15).
 - [x] Generated status page `project/status/status-2026-07-15.html` and refreshed STATUS-SUMMARY.md.
 - [x] Implemented invite-only membership matching by approved email or Replit username.
+- [x] Added September player-facing enhancements: display-only odds, Favorites/Upsets/Random auto-picks, confidence transfers, completion messaging, odds highlights, and team-pick statistics.
 
 ---

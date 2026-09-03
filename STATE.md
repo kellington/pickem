@@ -21,10 +21,10 @@ The app is live at **geeks-pickem.replit.app** with the full 2026 schedule (272 
 
 ## League operations
 
-*(Hard deadline: league live by mid-August 2026 — see PLAN.md.)*
+*(Original hard deadline was mid-August 2026; Week 1 begins September 9, 2026.)*
 
-- Beta-tester email sent to 15 friends (June 10); 1 confirmed friend sign-in (Mike); follow-up owed to the rest.
-- **Invite list drafted** — 17 names/emails in `project/diary/diary-2026-07.md` (2026-07-15 entry). Caveat: matching requires each friend's *Replit-account* email, exact match; confirm addresses and seed lowercase.
+- Beta-tester email sent to 15 friends (June 10); current production notes show 10 active members and 16 invited rows.
+- **Invite list drafted** — current roster details are in `project/diary/diary-2026-09.md`. Caveat: matching requires each friend's *Replit-account* email, exact match; 7 invited rows appear stale or duplicated and need reconciliation.
 - Membership policy decided 2026-07-15: invite-only (`league_members` rows pre-seeded with `approved_email`, `status = invited`); implemented in profile setup with a friendly rejection for unmatched users.
 - Season setup: 2026 season active, 18 weeks, 272 games; results-entry and scoring workflow are implemented but still need end-to-end exercise.
 
@@ -60,6 +60,7 @@ Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `REPL_ID`, `REPLIT_DOMAINS`
 ## Open questions
 
 - **Verification vs. implementation:** the core Week 1 capability is now implemented, but the user-facing rehearsal and production sign-off remain open.
+- **PLAN.md drift:** the plan still lists schedule parsing as pending and odds/auto-pick as out of scope, but the schedule and those player-facing helpers are already shipped; refresh the plan at the next milestone boundary.
 - Admin score-week flow: web endpoint (current) vs CLI script — still open.
 - Lightweight admin UI vs DB-level access for v1 — still open.
 - ~~When to lock down auto-create~~ — decided 2026-07-15 and implemented: invite-only matching is enforced before profile setup.
