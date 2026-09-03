@@ -4,14 +4,14 @@
 
 ## Summary
 
-The app is live at **geeks-pickem.replit.app** with the full 2026 schedule (272 games), working auth, and implemented pick → score → standings flows. September work added odds guidance, Favorites/Upsets/Random helpers, completion messaging, transferable confidence points with clear available/used states, aggregate team-pick statistics, and Home-screen status updates. A code audit on September 2 confirmed that the Week 1 milestone capabilities are implemented; remaining work is end-to-end verification, automated tests, invite-only membership, roster cleanup, and production rehearsal before Week 1 begins on September 9.
+The app is live at **geeks-pickem.replit.app** with the full 2026 schedule (272 games), working auth, and implemented pick → score → standings flows. September work added odds guidance, Favorites/Upsets/Random helpers, completion messaging, transferable confidence points with clear available/used states, aggregate team-pick statistics, and Home-screen status updates. A code audit on September 2 confirmed that the Week 1 milestone capabilities and invite-only membership gate are implemented; remaining work is end-to-end verification, automated tests, roster cleanup, and production rehearsal before Week 1 begins on September 9.
 
 ## What's working
 
 - Full-stack app running via Replit Workflow: Vite/React frontend (port 5000), Express/TypeScript backend (port 3001 dev, proxied through Vite)
 - Replit Auth OIDC login working — session cookie uses `SameSite=None; Secure` for the Replit preview iframe
 - `/api/me` auto-creates an `appUsers` record on first login and matches against `leagueMembers` by email or Replit username
-- Profile setup (`/api/profile` POST) — currently still auto-creates membership for anyone (to be removed per invite-only decision)
+- Profile setup (`/api/profile` POST) — matches users to pre-seeded invites by email or Replit username and rejects unmatched users
 - All pages: Landing, SetupProfile, Home, WeekPicks (with odds, auto-pick, Clear All, confidence transfer/status), GroupPicks, Standings, Nav
 - Admin tools on Home: refresh odds (The Odds API), generate fake results, refresh results from ESPN, clear results, score week
 - PostgreSQL via Drizzle; 32 teams, 2026 season active, 18 weeks, **272 games seeded**; schema has strong unique constraints backing all pick/score invariants
@@ -25,18 +25,17 @@ The app is live at **geeks-pickem.replit.app** with the full 2026 schedule (272 
 
 - Beta-tester email sent to 15 friends (June 10); 1 confirmed friend sign-in (Mike); follow-up owed to the rest.
 - **Invite list drafted** — 17 names/emails in `project/diary/diary-2026-07.md` (2026-07-15 entry). Caveat: matching requires each friend's *Replit-account* email, exact match; confirm addresses and seed lowercase.
-- Membership policy decided 2026-07-15: invite-only (`league_members` rows pre-seeded with `approved_email`, `status = invited`); auto-create to be removed. **Not yet implemented** — the door is still open until the code change lands.
+- Membership policy decided 2026-07-15: invite-only (`league_members` rows pre-seeded with `approved_email`, `status = invited`); implemented in profile setup with a friendly rejection for unmatched users.
 - Season setup: 2026 season active, 18 weeks, 272 games; results-entry and scoring workflow are implemented but still need end-to-end exercise.
 
 ## In progress
 
-- Nothing in flight in code. The implementation is ahead of the written verification checklist; focus next on the Week 1 rehearsal, roster cleanup, and invite-only switch.
+- Nothing in flight in code. The implementation is ahead of the written verification checklist; focus next on the Week 1 rehearsal, roster cleanup, and production sign-off.
 
 ## Known issues / gaps
 
-*(Review details remain in `project/reviews/2026-07-15_claude.md`; H2–H5 are implemented in the current code.)*
+*(Review details remain in `project/reviews/2026-07-15_claude.md`; H1 and H2–H5 are implemented in the current code.)*
 
-- **H1 — Membership wide open:** any Replit user can join via profile auto-create. Invite-only was decided but is not yet implemented.
 - **H6 — No tests:** `npm test` points at `server/tests/`, which doesn't exist; scoring, validation, locking, and standings need automated coverage.
 - **Verification gap:** pick submission, confidence transfer, cutoff enforcement, scoring, standings, and Group Picks reveal are implemented but not yet signed off with a complete second-user and production rehearsal.
 - **League operations:** 10 active members and 16 invited rows are recorded; 7 invited rows appear stale or duplicated and the remaining friends still need confirmation/onboarding.
@@ -63,7 +62,7 @@ Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `REPL_ID`, `REPLIT_DOMAINS`
 - **Verification vs. implementation:** the core Week 1 capability is now implemented, but the user-facing rehearsal and production sign-off remain open.
 - Admin score-week flow: web endpoint (current) vs CLI script — still open.
 - Lightweight admin UI vs DB-level access for v1 — still open.
-- ~~When to lock down auto-create~~ — decided 2026-07-15: invite-only; remaining question is only sequencing (implement before onboarding push).
+- ~~When to lock down auto-create~~ — decided 2026-07-15 and implemented: invite-only matching is enforced before profile setup.
 
 ---
 

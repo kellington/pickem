@@ -21,7 +21,6 @@ also land before the mid-August 2026 launch deadline (see PLAN.md).
 - [ ] Verify Standings: confirm weekly rankings, season totals, phased dropped-week totals, and rank ordering.
 - [ ] Add unit tests for scoring logic, confidence-point validation, cutoff/lock behavior, and dropped-week calculation.
 - [ ] Validate Replit Deployment end-to-end: log in at geeks-pickem.replit.app, confirm picks and scoring work in production (not just dev).
-- [ ] Switch to invite-only membership: remove the auto-create branch in `POST /api/profile` (return a friendly "not invited" response), and add a seed script in `scripts/` that inserts invited `league_members` rows from the admin's email list (lowercase emails, case-insensitive match). See DECISIONS.md 2026-07-15 and review finding H1.
 - [ ] Verify the implemented phased dropped weeks and lock rules: no drops until 5 weeks scored, kickoff fallback for missing cutoffs, Clear All respecting locks, and confidence range based on total games.
 
 ## Later
@@ -42,7 +41,7 @@ also land before the mid-August 2026 launch deadline (see PLAN.md).
 - [x] Approved and documented the first v1 data model in `REPLIT_AGENT_HANDOFF.md`.
 - [x] Imported repo into Replit; Replit Agent scaffolded the full-stack app.
 - [x] Replit Auth OIDC login working end-to-end (fixed SameSite=None cookie for iframe context).
-- [x] Profile setup working (auto-creates league member on first save; first user becomes admin).
+- [x] Profile setup working with invite-only membership matching.
 - [x] 32 NFL teams seeded; 2026 season and 18 week stubs seeded.
 - [x] All core pages and API routes scaffolded.
 - [x] Fetched full 2026 NFL schedule from ESPN API — 272 games, 18 weeks, saved to `data/schedule-2026.json`.
@@ -57,5 +56,6 @@ also land before the mid-August 2026 launch deadline (see PLAN.md).
 - [x] Full code review completed (2026-07-15) — `project/reviews/2026-07-15_claude.md`; 6 high / 9 medium / 10 polish findings, follow-up tasks queued above.
 - [x] Recorded decisions: invite-only membership (reverses auto-create) and phased dropped weeks from week 5 (DECISIONS.md 2026-07-15).
 - [x] Generated status page `project/status/status-2026-07-15.html` and refreshed STATUS-SUMMARY.md.
+- [x] Implemented invite-only membership matching by approved email or Replit username.
 
 ---
